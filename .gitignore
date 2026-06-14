@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Large databases
+databases/
+*.tar.gz
+*.zip
+*.appx
+
+# Temporary files
+tmp/
+temp/
+
+# Results
+results/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,13 @@
+[project]
+name = "bur01-structmine"
+version = "0.1.0"
+description = "Bur01 structure-guided enzyme mining pipeline using Foldseek, RCSB, UniProt and NCBI references."
+requires-python = ">=3.10"
+dependencies = [
+    "biopython>=1.83",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "requests>=2.31.0",
+    "PyYAML>=6.0.1",
+    "tqdm>=4.66.0",
+]
