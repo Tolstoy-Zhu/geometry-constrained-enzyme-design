@@ -1,0 +1,80 @@
+{
+  "project_version": "0.3.0",
+  "validation_date": "2026-07-11",
+  "passed": true,
+  "unit_tests": {
+    "passed": 34,
+    "failed": 0,
+    "temporary_output_only": true
+  },
+  "doctor": {
+    "passed": 31,
+    "warnings": 0,
+    "failed": 0
+  },
+  "runtime": {
+    "gpu": "NVIDIA GeForce RTX 4080 16 GB",
+    "colabfold": "1.6.1",
+    "alphafold_colabfold": "2.3.13",
+    "jax": "0.5.3",
+    "openmm": "8.5.2",
+    "foldseek_revision": "7f4b94644d6b210af4530e04a9fdc9e4bb64ea66",
+    "parameter_archive_sha256": "ad158bc5e80eb6fa339928c2ad9a052e5386bb1a650acf3c39b4fb57da4e369d",
+    "parameter_file_checksums_recorded": 5
+  },
+  "predictions": {
+    "8HFW": {
+      "model_count": 5,
+      "mean_plddt": 98.0674,
+      "ptm": 0.95,
+      "minimum_bidirectional_tm": 0.9925,
+      "reference": "PDB 8HFW chain A"
+    },
+    "Q9FVW3": {
+      "model_count": 5,
+      "mean_plddt": 83.5407,
+      "ptm": 0.74,
+      "minimum_bidirectional_tm": 0.7815,
+      "reference": "AlphaFold DB v6",
+      "candidate_lineage_traceable": true
+    }
+  },
+  "predicted_query_benchmark": {
+    "passed": true,
+    "self_alignment_score": 0.9975,
+    "lowest_positive_score": 0.8091,
+    "highest_negative_score": 0.2493,
+    "p00520_rejected": true
+  },
+  "swissprot_search": {
+    "database_structures": 590183,
+    "raw_hits": 999,
+    "filtered_candidates": 12,
+    "valid_annotations": 12,
+    "warnings": 0
+  },
+  "ui": {
+    "passed": true,
+    "viewports": [
+      "1440x900",
+      "390x844"
+    ],
+    "horizontal_overflow": false,
+    "keyboard_focus_visible": true,
+    "plotly_charts_nonblank": true,
+    "webgl_structure_nonblank": true,
+    "screenshots": [
+      "docs/screenshots/af_prediction_desktop.png",
+      "docs/screenshots/af_prediction_mobile.png"
+    ]
+  },
+  "excluded_from_public_artifacts": [
+    "databases",
+    "model parameters",
+    "MSA cache",
+    "Obsidian vault",
+    "real candidate results and sequences",
+    "logs",
+    "machine-specific paths"
+  ]
+}

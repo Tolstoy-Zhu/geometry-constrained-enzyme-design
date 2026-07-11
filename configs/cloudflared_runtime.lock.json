@@ -1,0 +1,13 @@
+{
+  "component": "cloudflared",
+  "version": "2026.7.1",
+  "platform": "windows-amd64",
+  "download_url": "https://github.com/cloudflare/cloudflared/releases/download/2026.7.1/cloudflared-windows-amd64.exe",
+  "size_bytes": 54159168,
+  "sha256": "ccb0756de288d3c2c076d19764ca53e0849a10f2dd9c23f8656ac42bdeb45001",
+  "license": "Apache-2.0",
+  "license_url": "https://github.com/cloudflare/cloudflared/blob/master/LICENSE",
+  "windows_auto_update": false,
+  "quick_tunnel_scope": "temporary testing and expert demonstration; no uptime guarantee",
+  "fixed_hostname_mode": "remotely managed named tunnel with owner-supplied token and hostname"
+}

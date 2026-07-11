@@ -1,0 +1,76 @@
+# AquaEsterNet-StructMine preset: PDB + AlphaFold/Swiss-Prot + optional NCBI
+
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp
+  max_seqs: 1000
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: pdb
+    enabled: true
+    kind: foldseek
+    target_db: databases/pdb
+    foldseek_database: PDB
+    annotation_source: pdb
+
+  - name: alphafold_swissprot
+    enabled: true
+    kind: swissprot
+    target_db: databases/afdb_swissprot
+    foldseek_database: Alphafold/Swiss-Prot
+    annotation_source: swissprot
+
+  # Enable only after preparing an NCBI candidate FASTA and ProstT5 database.
+  - name: ncbi_prostt5
+    enabled: false
+    kind: ncbi_fasta
+    input_fasta: data/ncbi/ncbi_candidates.fasta
+    target_db: databases/ncbi_prostt5
+    prostt5_model: databases/prostt5_weights
+    annotation_source: ncbi
+    format_fields:
+      - query
+      - target
+      - evalue
+      - bits
+      - prob
+      - fident
+      - alnlen
+      - qlen
+      - tlen
+      - qcov
+      - tcov
+
+filter:
+  min_alntmscore: 0.45
+  max_rmsd: 4.0
+  min_qcov: 0.60
+  min_tcov: 0.40
+  min_alnlen: 180
+  max_sequence_identity: 0.95
+
+annotation:
+  enable_rcsb: true
+  enable_uniprot: true
+  enable_ncbi: true
+  enable_alphafold: true
+  request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 200
+
+output:
+  out_prefix: results/Bur01_vs_multidb
+  run_root: results/runs

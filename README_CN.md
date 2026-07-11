@@ -1,362 +1,366 @@
-# Bur01-StructMine V1：PyCharm 可运行代码包
+# AquaEsterNet-StructMine v0.3 中文说明
 
-本代码包已经按照 **PyCharm 项目** 重新整理，重点解决 Windows 电脑上打开压缩包后出现乱码的问题。
+**AquaEsterNet-StructMine** 是一个面向 Bur01-like 酶的结构约束挖掘工具。它以 [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A 为查询结构，用 Foldseek 搜索大规模结构库，用 TM-align 处理小型本地结构集合，再统一完成过滤、跨库注释、WASE-screen 预筛分和可追溯导出。
 
-## 1. 这个代码包能做什么？
+本项目不是一个直接预测酯化选择性或 S/H ratio 的黑箱模型。它解决的是更前置的问题：从结构库中找出值得进行表达、酶学和底物验证的 Bur01-like 候选。
 
-本项目用于实现 **Bur01 结构驱动的新酶挖掘 V1 管线**：
+## 最快开始
 
-```text
-Bur01 PDB结构 + 蛋白序列
-        ↓
-Foldseek 结构相似性搜索 PDB / AlphaFold DB / 自建结构库
-        ↓
-筛选结构相似蛋白
-        ↓
-RCSB / UniProt / NCBI 信息反查
-        ↓
-输出候选蛋白序列、注释信息、NCBI下载命令和候选合成建议
-```
-
-注意：
-
-- **PDB数据库** 可以直接做结构搜索；
-- **NCBI主要是序列数据库**，不能直接做结构搜索；
-- 如果想从 NCBI 全库中做结构相似性挖掘，需要先把候选蛋白序列预测成结构，再用 Foldseek 建库检索；
-- V1版本优先实现 **Foldseek结构搜索 + 数据库反查 + 候选输出**。
-
----
-
-## 2. 文件夹结构
+双击项目根目录中的：
 
 ```text
-Bur01_StructMine_PyCharm/
-├── run_pipeline.py                 # 主入口：完整管线
-├── run_demo_no_foldseek.py          # 测试入口：不需要Foldseek和联网
-├── config.yaml                      # 参数配置文件
-├── requirements.txt                 # Python依赖
-├── README_FIRST.txt                 # 快速说明
-├── README_CN.md                     # 中文说明
-├── data/
-│   ├── query/
-│   │   ├── Bur01m.pdb               # 示例Bur01结构文件
-│   │   └── Bur01m_seed.fasta        # 示例Bur01蛋白序列
-│   └── example_foldseek_result.tsv  # 示例Foldseek结果，用于无Foldseek测试
-├── src/
-│   └── bur01_structmine/
-│       ├── pipeline.py              # 主流程
-│       ├── foldseek_runner.py       # Foldseek封装
-│       ├── results_parser.py        # Foldseek结果解析与过滤
-│       ├── rcsb_client.py           # RCSB PDB接口
-│       ├── uniprot_client.py        # UniProt接口
-│       ├── annotator.py             # 命中结果注释
-│       ├── scoring.py               # 候选酶简单评分
-│       ├── ncbi_commands.py         # NCBI下载命令生成
-│       ├── pdb_utils.py             # PDB序列提取
-│       ├── io_utils.py              # 输入输出工具
-│       └── config.py                # 配置读取
-├── scripts/
-│   ├── run_demo_windows.bat         # Windows测试脚本
-│   ├── run_demo_linux.sh            # Linux/WSL测试脚本
-│   ├── download_pdb100_database.sh  # 下载PDB100数据库
-│   └── download_afdb_database.sh    # 下载AlphaFold DB示例脚本
-├── databases/                       # Foldseek数据库存放位置
-├── results/                         # 输出结果
-└── tmp/                             # Foldseek临时文件
+start_ui.bat
 ```
 
----
+它会启动后台守护程序并打开固定地址 `http://127.0.0.1:8501`。网页不再依赖命令窗口持续打开；如果 Streamlit 意外退出，守护程序会自动重启。默认界面为中文，可切换英文。
 
-## 3. 在 PyCharm 中打开
-
-### 第一步：解压
-
-将压缩包解压到一个英文路径，例如：
+首次启用登录自启动时，双击：
 
 ```text
-D:\Bur01_StructMine_PyCharm
+install_ui_autostart.bat
 ```
 
-不建议放在含中文或空格很多的路径中。
+安装后，Windows 用户登录时会在后台启动网页，不会自动暴露到局域网或公网。其他控制入口：`stop_ui.bat` 停止网页，`ui_status.bat` 查看状态，`uninstall_ui_autostart.bat` 只移除自启动任务而不删除项目或结果。
 
-### 第二步：用 PyCharm 打开
+命令行入口：
 
-PyCharm 中选择：
+```powershell
+# 环境诊断
+python start_here.py --action doctor
 
-```text
-File → Open → 选择 Bur01_StructMine_PyCharm 文件夹
+# 固定基准的真实 Foldseek 验收
+python start_here.py --action benchmark
+
+# 完整 AlphaFold/Swiss-Prot 生产搜索
+python start_here.py --action production-run
+
+# 运行隔离测试
+python start_here.py --action validate
+
+# 检查项目文件是否完整
+python start_here.py --action check-files
+
+# 单体 AF2 预测。首次或缓存未命中时必须确认公共 MSA 传输
+python -m bur01_structmine.cli predict --fasta query.fasta --preset standard --confirm-public-msa
+
+# 预测 rank_001 后直接作为完整 Swiss-Prot 挖掘查询
+python -m bur01_structmine.cli predict-and-mine --fasta query.fasta --preset standard --confirm-public-msa --mining-config configs/alphafold_swissprot.yaml
 ```
 
-### 第三步：配置 Python 解释器
+`target-run` 仍保留兼容，但现在与 `benchmark` 相同，运行真实 Foldseek 固定基准，不再把 P00520 当作阳性结果。
 
-建议 Python 版本：
+## 它有什么用
 
-```text
-Python 3.10 或 Python 3.11
-```
+1. 从 AlphaFold/Swiss-Prot 或 PDB 中发现结构上接近 Bur01 的候选蛋白。
+2. 在序列一致性不高时，利用整体折叠、覆盖度和催化核心保守性保留潜在远缘同源物。
+3. 把 Foldseek、TM-align、UniProt、AlphaFold DB、RCSB 和 NCBI 信息整理成同一张候选表。
+4. 输出可用于后续基因合成、表达纯化和酶学实验的 Excel、TSV 和 FASTA 文件。
+5. 为未来正式 WASE 模型准备透明、可审计的结构和证据字段。
 
-PyCharm 中选择：
+## AlphaFold2 预测功能
 
-```text
-Settings → Project → Python Interpreter → Add Interpreter
-```
+v0.3 在现有 `Ubuntu-Foldseek` WSL2 中加入 LocalColabFold 1.6.1 和 AlphaFold2-PTM。本项目现在既能搜索已有结构，也能先把新蛋白序列预测成结构，再用预测结果进行结构挖掘。
 
-可以选择 Virtualenv。
+### 支持的输入
 
-### 第四步：安装依赖
+- 单条 FASTA，长度 20-1000 aa。
+- 只允许 20 种标准氨基酸和 `X`；`X` 不得超过 5%。
+- 可直接选择某次挖掘运行中的已有候选 accession。
+- v0.3 只支持单体蛋白，不支持复合物、配体、核酸或共价修饰。
 
-在 PyCharm 底部 Terminal 中运行：
+### 标准参数
+
+| 质量档 | 模型 | recycle | seed | Amber 松弛 |
+|---|---:|---:|---:|---:|
+| 快速 | 1 | 3 | 1 | 0 |
+| 标准，默认 | 5 | 3 | 1 | rank_001 |
+| 高采样 | 5 | 12 | 3 | rank_001 |
+
+模型类型固定为 `alphafold2_ptm`。模板默认关闭；只有用户显式开启时才使用公共模板搜索。预测不会静默回退 CPU，JAX 未检测到 GPU 或显存不足时会明确失败。
+
+### 两阶段运行和隐私
+
+1. 公共 ColabFold MMseqs2 服务生成 MSA。
+2. RTX 4080 在本地运行 AlphaFold2-PTM 推理；模型排名后由 CPU OpenMM 对 rank_001 做 Amber 松弛，避免与仍驻留的模型权重争用显存。
+
+MSA 按标准化序列 SHA-256 缓存。所有公共 MSA 请求严格串行，缓存未命中时必须逐次确认序列将发送到第三方服务。网络或服务端失败最多重试 3 次，默认按 15 秒、30 秒指数退避，并把原始服务错误写入事件和失败清单。项目不下载约 940 GB 的本地 ColabFold 数据库。
+
+在 `Ubuntu-Foldseek` 中、从挂载的项目根目录安装固定运行环境和权重：
 
 ```bash
-pip install -r requirements.txt
+sudo bash scripts/install_colabfold_wsl.sh
+sudo bash scripts/install_alphafold_params.sh
 ```
 
----
+权重归档和五个 PTM 模型文件均记录 SHA-256。AlphaFold 参数使用其随附的 CC BY-NC-SA 4.0 许可，不会进入 Git 仓库或发布包。
 
-## 4. 不安装 Foldseek 的快速测试
+### 预测结果
 
-这个测试只检查 Python 环境、PDB读取和文件输出是否正常。
+每个任务写入 `results/predictions/<prediction_id>/`，包括：
 
-运行：
+- 标准化 FASTA、序列哈希和 A3M。
+- 5 个标准档模型、排名、rank_001 PDB 和模型参数校验值。
+- 每残基 pLDDT、pTM、PAE、日志和进度事件。
+- 运行时版本、参数、MSA 缓存状态、警告和失败原因。
+- 8HFW `Ser111/Asp241/His274` 的全局序列映射及人工修正记录。
+- 与后续 Foldseek 运行双向关联的 prediction ID 和 run ID。
 
-```bash
-python run_demo_no_foldseek.py
-```
+如果催化位点无法映射或残基身份不符，预测和结构搜索仍继续，但催化核心证据保持为空并明确记录缺失项。
 
-如果成功，会生成：
+## 查询结构
 
-```text
-results/demo_query_sequence.fasta
-```
+| 项目 | 内容 |
+|---|---|
+| PDB | 8HFW |
+| 查询链 | A |
+| 文件 | `data/query/Bur01m.pdb` |
+| 残基范围 | 12-294 |
+| 链长度 | 283 aa |
+| 催化残基 | Ser111 / Asp241 / His274 |
+| SHA-256 | `9f51637496713b18d3ec8f0586a1aef19d3c8f96bd3e48fda9e9af6e88da24fe` |
 
-说明 PyCharm 项目已经可以正常运行。
+每次运行都会把这些信息写入 `run_manifest.json`。多链结构不会再被拼接成一条假结构，每条链独立比较并输出 `query_chain` 和 `target_chain`。
 
----
+## 固定基准集
 
-## 5. 用示例 Foldseek 结果测试完整流程
-
-这个测试不需要安装 Foldseek，但会尝试联网访问 RCSB 和 UniProt。
-
-运行：
-
-```bash
-python run_pipeline.py --config config.yaml --skip-foldseek --input-tsv data/example_foldseek_result.tsv
-```
-
-输出文件：
-
-```text
-results/Bur01_vs_database.foldseek.raw.xlsx
-results/Bur01_vs_database.foldseek.filtered.xlsx
-results/Bur01_vs_database.annotated.xlsx
-results/Bur01_vs_database.candidate_proteins.fasta
-results/Bur01_vs_database.download_ncbi_cds.sh
-```
-
-如果没有联网，RCSB/UniProt注释列可能为空，但前面的解析、过滤和输出流程仍然能跑通。
-
----
-
-## 6. 正式运行：Linux 或 Windows WSL2 推荐
-
-Foldseek 在 Linux/WSL2 上最稳定。Windows 用户建议安装 WSL2 Ubuntu。
-
-### 6.1 安装 conda 环境
-
-```bash
-conda create -n bur01_structmine python=3.10 -y
-conda activate bur01_structmine
-pip install -r requirements.txt
-```
-
-### 6.2 安装 Foldseek
-
-推荐使用 conda 安装：
-
-```bash
-conda install -c conda-forge -c bioconda foldseek -y
-```
-
-检查是否安装成功：
-
-```bash
-foldseek version
-```
-
-### 6.3 下载 PDB100 数据库
-
-```bash
-bash scripts/download_pdb100_database.sh
-```
-
-如果脚本报数据库名不支持，先运行：
-
-```bash
-foldseek databases
-```
-
-查看当前 Foldseek 版本支持的数据库名称，并修改脚本中的数据库名。
-
-### 6.4 正式搜索
-
-```bash
-python run_pipeline.py --config config.yaml
-```
-
----
-
-## 7. 配置文件说明
-
-主要修改 `config.yaml`：
-
-```yaml
-query:
-  pdb_file: data/query/Bur01m.pdb
-  fasta_file: data/query/Bur01m_seed.fasta
-
-foldseek:
-  executable: foldseek
-  target_db: databases/pdb100
-  tmp_dir: tmp
-  max_seqs: 1000
-  threads: 8
-
-filter:
-  min_alntmscore: 0.45
-  max_rmsd: 4.0
-  min_qcov: 0.60
-  min_tcov: 0.40
-  min_alnlen: 180
-  max_sequence_identity: 0.95
-```
-
-如果你要换成自己的 Bur01 文件，把 PDB 放到：
-
-```text
-data/query/
-```
-
-然后修改：
-
-```yaml
-query:
-  pdb_file: data/query/your_Bur01.pdb
-```
-
----
-
-## 8. 云算力运行建议
-
-如果只搜索 PDB100，普通电脑或实验室服务器即可。
-
-如果要做 AlphaFold DB 或大规模自建 NCBI 结构库，建议使用云算力。
-
-推荐配置：
-
-| 任务 | 推荐平台 | 配置建议 |
+| 类型 | 对照 | 用途 |
 |---|---|---|
-| Foldseek vs PDB100 | 本地Linux/WSL2 | CPU 8核，内存16–32 GB |
-| Foldseek vs AlphaFold DB | 云服务器 | CPU 16–32核，内存64–128 GB，硬盘500 GB以上 |
-| 自建NCBI结构库 | 云服务器 | CPU 32核以上，内存128 GB，硬盘1 TB以上 |
-| ColabFold预测结构 | GPU云服务器 | NVIDIA A10/A100/4090，显存24 GB以上 |
-| AlphaFold3本地全量部署 | 高性能GPU服务器 | Linux，NVIDIA GPU，数据库空间可能接近TB级 |
+| 自比对阳性 | 8HFW chain A | 检查 TM-score 和 RMSD 上限 |
+| 相关阳性 | 1XKL、6TJ2、Q6RYA0、Q9FVW3 | 检查 Bur01-like 结构排序 |
+| 长度匹配负对照 | P60174 | 排除仅由长度相近造成的假阳性 |
+| 远缘负对照 | P00520 | 排除旧版错误阳性 |
 
-V1版本不建议一开始就全量预测 NCBI 蛋白结构，建议先用关键词、HMM或BLAST缩小候选，再预测结构并用 Foldseek 建库。
+验收条件：
 
----
+- 8HFW 自比对 TM-score 大于 0.98，RMSD 接近 0。
+- 五个阳性整体排在两个负对照之前。
+- P00520 不得通过默认结构阈值。
+- 最终正式验收必须由 Foldseek 完成，TM-align 预览不能替代。
 
-## 9. 输出结果如何使用？
-
-最重要的是：
-
-```text
-results/Bur01_vs_database.annotated.xlsx
-```
-
-建议重点看这些列：
-
-- `target`：Foldseek命中ID；
-- `alntmscore`：结构相似性指标；
-- `rmsd`：结构偏差；
-- `qcov/tcov`：结构覆盖度；
-- `fident`：序列一致性；
-- `rcsb_protein_name` / `uniprot_protein_name`：功能注释；
-- `organism`：来源物种；
-- `final_protein_sequence`：最终蛋白序列；
-- `EMBL_accessions` / `RefSeq_accessions` / `NCBI_GeneID`：后续找CDS的入口；
-- `synthesis_recommendation`：是否建议进入基因合成。
-
----
-
-## 10. 获得基因序列的方式
-
-本项目 V1 主要自动整理 NCBI 入口，并生成脚本：
+基准来源和下载校验值记录在：
 
 ```text
-results/Bur01_vs_database.download_ncbi_cds.sh
+data/benchmark/benchmark_manifest.yaml
+data/benchmark/download_manifest.json
 ```
 
-如果候选蛋白有 NCBI GeneID，可用 NCBI Datasets 下载 gene、CDS 和 protein。
+## 两种结构搜索引擎
 
-如果没有天然 CDS，可根据 `final_protein_sequence` 直接进行密码子优化和人工基因合成。
+### Foldseek
 
----
-
-## 11. 常见问题
-
-### 问题1：PyCharm 打开代码乱码
-
-本项目全部文件名使用英文，文本文件使用 UTF-8 编码，并带有 `.editorconfig`。如果仍乱码，在 PyCharm 中设置：
+用于固定基准的正式验收和 AlphaFold/Swiss-Prot 大库搜索。默认 WSL 配置：
 
 ```text
-Settings → Editor → File Encodings → Global Encoding = UTF-8
+发行版：Ubuntu-Foldseek
+Windows 安装位置：可配置的 WSL 导入目录
+Foldseek：/opt/foldseek/bin/foldseek
+数据库：<项目目录>/databases
 ```
 
-### 问题2：运行正式流程提示找不到 Foldseek
+完整环境安装脚本：
 
-说明没有安装 Foldseek，或 Foldseek 不在 PATH 中。
-
-先运行：
-
-```bash
-foldseek version
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup_wsl_foldseek.ps1
 ```
 
-如果不行，先安装 Foldseek。
+完整验收脚本：
 
-### 问题3：RCSB/UniProt 注释为空
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_production_acceptance.ps1
+```
 
-可能是没有联网，或目标ID不是PDB/UniProt格式。先检查网络，再检查 `target` 列格式。
+### TM-align 小集合预览
 
-### 问题4：NCBI CDS 不能直接获得
+`tmtools==0.3.0` 调用真实 TM-align，适合固定基准或少量本地结构的快速预览：
 
-蛋白序列不一定都有清晰的天然基因记录。对于实验表达，最稳妥的方法是：
+```powershell
+python -m bur01_structmine.cli benchmark --engine tmtools
+```
+
+它输出真实 qTM、tTM、RMSD、对齐序列和残基映射。`evalue`、`bits` 和 `prob` 留空，不再伪造 Foldseek 指标。
+
+## 网页工作台
+
+网页包含六个视图：
+
+- **运行**：查询、数据库、阈值、预检、运行、取消、实时事件和错误。
+- **AF预测**：粘贴/上传 FASTA 或选择候选，检查隐私确认与催化位点映射，运行预测或预测并挖掘，查看模型排名、pLDDT、PAE 和三维结构。
+- **候选**：按来源、TM-score、覆盖度、WASE 层级、reviewed 状态和证据完整度筛选。
+- **结构**：显示查询与候选的 TM-align 叠合，并突出 Ser111/Asp241/His274 及其映射残基。
+- **历史**：查看每次运行的状态、命中数、警告、错误和结果目录。
+- **诊断**：检查 WSL、Foldseek、AVX2、数据库、网络、磁盘、Python 依赖和写权限。
+
+候选可导出为 Excel、TSV 和 FASTA，也可在界面中重新注释。
+
+### 长期运行方式
+
+- 固定本机地址：`http://127.0.0.1:8501`。
+- Windows 登录后自动启动；不要求浏览器或命令窗口始终打开。
+- 每 5 秒检查一次健康状态，网页进程退出后自动重新启动。
+- Windows 计划任务每分钟触发一次恢复检查；守护程序本身异常退出后最多约 1 分钟恢复。
+- 状态和日志保存在 `.cache/ui_service/`，不会进入发布包或覆盖正式结果。
+- 默认仅本机可访问。休眠、关机或未登录 Windows 时网页不可访问；恢复并登录后会重新提供服务。
+
+### 在线专家演示
+
+双击 `install_online_ui.bat` 可建立带密码的 HTTPS 演示通道，其他电脑无需安装项目即可实时操作网页。程序会同时打开最新在线网址和本机分享文件 `.cache/remote_ui/SHARE_WITH_EXPERTS.txt`。
+
+默认 Quick Tunnel 的网址在通道重启后可能变化，适合临时展示，不等同于正式云托管。固定网址需要 Cloudflare 命名 Tunnel、自己的域名和 Access 允许名单。操作、安全边界和固定域名步骤见 `ONLINE_DEMO_GUIDE_CN.md`。
+
+## 生产搜索
+
+准备完整 AlphaFold/Swiss-Prot Foldseek 数据库：
+
+```powershell
+python prepare_databases.py --config configs/alphafold_swissprot.yaml --only alphafold_swissprot
+```
+
+运行生产搜索：
+
+```powershell
+python -m bur01_structmine.cli production-run --config configs/alphafold_swissprot.yaml
+```
+
+本机内存为 32 GB，因此本项目不下载 UniProt50。默认使用完整 AlphaFold/Swiss-Prot，以避免超出可用内存。
+
+生产配置固定使用官方 AlphaFold/Swiss-Prot `v6 2025_03` 归档，并校验长度和 SHA-256。若 WSL 无法访问 Foldseek 的 Cloudflare 跳转域名，准备器会从配置中的官方 S3 对象断点续传、安全解包并写出来源清单。
+
+## 每次运行的输出
+
+所有正式运行写入：
 
 ```text
-完整蛋白序列 → 表达宿主密码子优化 → 人工合成基因
+results/runs/<run_id>/
 ```
 
----
+主要文件：
 
-## 12. V1版本边界
+```text
+run_manifest.json                 运行清单、输入哈希、软件和数据库版本
+config.snapshot.yaml              完整配置快照
+events.jsonl                      逐阶段进度事件
+*.search.raw.tsv/.xlsx            原始结构命中
+*.search.filtered.tsv/.xlsx       阈值过滤结果
+*.annotated.tsv/.xlsx             注释与 WASE-screen 结果
+*.candidate_proteins.fasta        候选蛋白序列
+*.download_ncbi_cds.sh            NCBI CDS 下载辅助脚本
+benchmark_report.json             固定基准验收报告，仅基准运行产生
+```
 
-已实现：
+`results/runs/latest.json` 指向最近一次完成或失败的运行。失败原因不会被静默吞掉。
 
-- Bur01 PDB输入；
-- Foldseek结构搜索封装；
-- Foldseek结果解析和过滤；
-- RCSB/UniProt注释反查；
-- NCBI GeneID/RefSeq入口整理；
-- 候选蛋白FASTA输出；
-- 候选合成推荐；
-- NCBI下载命令生成。
+## 重要结果字段
 
-尚未完全自动化：
+结构字段：
 
-- NCBI全库蛋白结构预测；
-- AlphaFold/ColabFold批量预测结构；
-- 真实CDS的一键下载和清洗；
-- 催化三联体的三维空间自动识别；
-- 与DALI结果的一键融合。
+- `search_engine`、`metric_source`、`alignment_version`
+- `query_chain`、`target_chain`
+- `qtmscore`、`ttmscore`、`alntmscore`
+- `rmsd`、`qcov`、`tcov`、`alnlen`、`fident`
+- `aligned_query`、`alignment_match_line`、`aligned_target`
 
-这些可以作为 V2 版本继续开发。
+催化核心字段：
+
+- `mapped_catalytic_residues`
+- `mapped_catalytic_identity_count`
+- `catalytic_ser_his_distance`
+- `catalytic_asp_his_distance`
+- `catalytic_geometry_contacts`
+
+注释字段：
+
+- `target_uniprot_accession`、`pdb_id`、`ncbi_protein_accession`
+- `uniprot_is_reviewed`、`alphafold_global_plddt`
+- `final_protein_sequence`、`final_sequence_source`
+- `annotation_status`、`annotation_errors`
+
+## WASE-screen v0.1
+
+WASE-screen 是透明的候选预筛分，不是正式 WASE 模型，也不预测 S/H ratio。
+
+```text
+structure_fit_score          45 分
+catalytic_core_score         30 分
+annotation_confidence_score  15 分
+experimental_readiness_score 10 分
+```
+
+结构分公式：
+
+```text
+25 × min(qTM, tTM)
++ 10 × sqrt(qcov × tcov)
++ 10 × clamp(1 - RMSD / 5, 0, 1)
+```
+
+高优先级必须同时满足：
+
+- 总分至少 70。
+- 证据覆盖率至少 75%。
+- `min(qTM,tTM) >= 0.5`。
+- 催化核心至少 20 分。
+
+输出包括：
+
+```text
+wase_screen_score
+wase_evidence_coverage
+wase_screen_uncertainty
+wase_tier
+wase_missing_evidence
+wase_version=0.1.0
+```
+
+通道专一性、醇驻留、水排斥、产物逃逸、发酵来源先验和进化证据目前均列为缺失证据，不能据此宣称水相酯化机制已经被验证。
+
+## 注释可靠性
+
+外部注释请求使用：
+
+- 批量 UniProt 请求。
+- 对 429 和 5xx 的自动重试。
+- 指数退避。
+- 30 天磁盘缓存。
+- 网络失败时的陈旧缓存回退。
+- 明确的 `annotation_status` 和 `annotation_errors`。
+
+网络失败不会再被静默写成空白。
+
+## 验证
+
+```powershell
+python -m pytest -q
+python -m bur01_structmine.cli doctor --config configs/benchmark_foldseek.yaml
+python -m bur01_structmine.cli benchmark --engine foldseek
+```
+
+测试使用独立临时目录，不写入正式 `results`。当前验证证据见 `VALIDATION_REPORT.md`。
+
+本机最终验收（2026-07-11）：
+
+- `43 passed`；`doctor` 为 `31 passed, 0 warnings, 0 failed`。
+- 8HFW 标准预测：5 个模型，rank_001 平均 pLDDT `98.07`、pTM `0.950`，相对实验结构 `min(qTM,tTM)=0.9925`。
+- Q9FVW3 候选标准预测：5 个模型，平均 pLDDT `83.54`、pTM `0.740`，相对 AlphaFold DB v6 `min(qTM,tTM)=0.7815`，来源运行和 accession 均可追溯。
+- 预测 8HFW 固定 Foldseek 基准：最低阳性 `0.8091` 高于最高阴性 `0.2493`，P00520 被拒绝。
+- 预测 8HFW 搜索完整 590,183 结构 Swiss-Prot 库：999 个原始命中、12 个默认阈值候选、12 个有效注释，零警告。
+- 网页在 `1440x900` 和 `390x844` 下通过截图、横向溢出、键盘焦点、PAE、pLDDT 和 WebGL 非空检查。
+
+## 科学边界
+
+- 结构相似不等于相同催化活性。
+- WASE-screen 只用于候选优先级，不是活性或选择性预测。
+- AlphaFold 结构必须结合 pLDDT、PAE、注释质量和实验验证判断。
+- 催化三联体映射是结构证据的一部分，不能替代底物通道、水化和动力学证据。
+- 最终候选仍需基因合成、表达纯化、底物谱和水相酯化实验验证。
+
+## 主要文件
+
+- `MODEL_GUIDE_CN.md`：模型用途、原理、创新点和边界的详细中文说明。
+- `MODEL_GUIDE_EN.md`：英文模型说明。
+- `PROJECT_OVERVIEW.md`：项目结构和入口概览。
+- `PROJECT_MANIFEST.md`：完整文件清单。
+- `VALIDATION_REPORT.md`：验证结果。
+- `COMPLETION_AUDIT.md`：v0.3 计划完成审计。
+- `CHANGELOG.md`：版本变更。
+- `THIRD_PARTY_LICENSES.md`：第三方软件和许可证。
+- `docs/RELEASE_NOTES_CN.md` / `docs/RELEASE_NOTES_EN.md`：v0.3 双语发布说明。

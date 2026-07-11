@@ -1,0 +1,34 @@
+benchmark_id: bur01_like_v0.1
+query:
+  label: 8HFW
+  role: self_positive
+  source: RCSB PDB
+  source_url: https://www.rcsb.org/structure/8HFW
+  chain: A
+positives:
+  - label: 1XKL
+    source: RCSB PDB
+    source_url: https://www.rcsb.org/structure/1XKL
+  - label: 6TJ2
+    source: RCSB PDB
+    source_url: https://www.rcsb.org/structure/6TJ2
+  - label: Q6RYA0
+    source: AlphaFold DB / UniProt
+    source_url: https://alphafold.ebi.ac.uk/entry/Q6RYA0
+  - label: Q9FVW3
+    source: AlphaFold DB / UniProt
+    source_url: https://alphafold.ebi.ac.uk/entry/Q9FVW3
+negatives:
+  - label: P60174
+    role: length_matched_negative
+    source: AlphaFold DB / UniProt
+    source_url: https://alphafold.ebi.ac.uk/entry/P60174
+  - label: P00520
+    role: remote_negative
+    source: AlphaFold DB / UniProt
+    source_url: https://alphafold.ebi.ac.uk/entry/P00520
+acceptance:
+  self_min_tm_score: 0.98
+  self_max_rmsd: 0.1
+  positives_before_all_negatives: true
+  p00520_must_fail_default_filter: true

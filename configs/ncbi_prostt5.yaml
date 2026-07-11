@@ -1,0 +1,64 @@
+# AquaEsterNet-StructMine preset: NCBI FASTA through Foldseek ProstT5
+
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp
+  max_seqs: 1000
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: ncbi_prostt5
+    enabled: true
+    kind: ncbi_fasta
+    input_fasta: data/ncbi/ncbi_candidates.fasta
+    target_db: databases/ncbi_prostt5
+    prostt5_model: databases/prostt5_weights
+    annotation_source: ncbi
+    format_fields:
+      - query
+      - target
+      - evalue
+      - bits
+      - prob
+      - fident
+      - alnlen
+      - qlen
+      - tlen
+      - qcov
+      - tcov
+
+filter:
+  # ProstT5 rows omit TM-score and RMSD, so these thresholds are not applied
+  # when the columns are absent. They remain scientifically meaningful if a
+  # later database build adds the fields.
+  min_alntmscore: 0.45
+  max_rmsd: 4.0
+  min_qcov: 0.60
+  min_tcov: 0.20
+  min_alnlen: 120
+  max_sequence_identity: 0.95
+
+annotation:
+  enable_rcsb: false
+  enable_uniprot: false
+  enable_ncbi: true
+  enable_alphafold: false
+  request_sleep_seconds: 0.34
+  cache_dir: .cache/annotations
+  max_records: 200
+
+output:
+  out_prefix: results/Bur01_vs_ncbi_prostt5
+  run_root: results/runs

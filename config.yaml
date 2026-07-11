@@ -1,19 +1,83 @@
-# Bur01-StructMine V1 configuration
+# AquaEsterNet-StructMine configuration
 # All paths are relative to this project root unless absolute paths are provided.
 
 query:
   pdb_file: data/query/Bur01m.pdb
   fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
 
 foldseek:
   executable: foldseek
-  # Choose one target database after downloading/building it.
-  # Example 1: databases/pdb100
-  # Example 2: databases/afdb_proteome
-  target_db: databases/pdb
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
   tmp_dir: tmp
   max_seqs: 1000
-  threads: 8
+  threads: 16
+  # Set true only when you want the pipeline to download/build enabled databases
+  # before searching. Large AlphaFold databases may require substantial storage.
+  prepare_databases: false
+
+search_databases:
+  # Experimental structures from PDB. Download with:
+  #   foldseek databases PDB databases/pdb tmp
+  - name: pdb
+    enabled: true
+    kind: foldseek
+    target_db: databases/pdb
+    foldseek_database: PDB
+    annotation_source: pdb
+
+  # AlphaFold DB clustered UniProt search space. Enable after downloading.
+  - name: alphafold_uniprot50
+    enabled: false
+    kind: alphafold
+    target_db: databases/afdb_uniprot50
+    foldseek_database: Alphafold/UniProt50
+    annotation_source: alphafold
+    cluster_search: false
+
+  # AlphaFold DB Swiss-Prot search space. This is the reviewed UniProt subset.
+  - name: alphafold_swissprot
+    enabled: false
+    kind: swissprot
+    target_db: databases/afdb_swissprot
+    foldseek_database: Alphafold/Swiss-Prot
+    annotation_source: swissprot
+
+  # NCBI proteins are sequence records. To compare them structurally, first
+  # convert an NCBI FASTA set into a Foldseek ProstT5 database.
+  - name: ncbi_prostt5
+    enabled: false
+    kind: ncbi_fasta
+    input_fasta: data/ncbi/ncbi_candidates.fasta
+    target_db: databases/ncbi_prostt5
+    prostt5_model: databases/prostt5_weights
+    annotation_source: ncbi
+    format_fields:
+      - query
+      - target
+      - evalue
+      - bits
+      - prob
+      - fident
+      - alnlen
+      - qlen
+      - tlen
+      - qcov
+      - tcov
+
+  # Alternative for NCBI or in-house candidates with real predicted structures
+  # from AlphaFold/ColabFold. Put PDB/mmCIF files in structure_dir, then build.
+  - name: ncbi_predicted_structures
+    enabled: false
+    kind: custom_structure
+    structure_dir: data/ncbi/predicted_structures
+    target_db: databases/ncbi_predicted_structures
+    annotation_source: ncbi
 
 filter:
   min_alntmscore: 0.45
@@ -26,7 +90,12 @@ filter:
 annotation:
   enable_rcsb: true
   enable_uniprot: true
+  enable_ncbi: true
+  enable_alphafold: true
   request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 200
 
 output:
   out_prefix: results/Bur01_vs_database
+  run_root: results/runs

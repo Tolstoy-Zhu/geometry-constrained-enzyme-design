@@ -45,6 +45,17 @@ def collect_gene_ids(df: pd.DataFrame) -> Set[str]:
     return gene_ids
 
 
+def collect_ncbi_protein_accessions(df: pd.DataFrame) -> Set[str]:
+    """Collect NCBI protein accessions from an annotated hit table."""
+    accessions: Set[str] = set()
+    if "ncbi_protein_accession" not in df.columns:
+        return accessions
+    for value in df["ncbi_protein_accession"].dropna():
+        for acc in _split_multi(value):
+            accessions.add(acc)
+    return accessions
+
+
 def write_ncbi_download_script(df: pd.DataFrame, out_sh: str | Path) -> None:
     """Write a Linux/WSL shell script for NCBI Datasets downloads."""
     out_sh = Path(out_sh)
@@ -52,6 +63,7 @@ def write_ncbi_download_script(df: pd.DataFrame, out_sh: str | Path) -> None:
 
     refseqs = sorted(collect_refseq_accessions(df))
     gene_ids = sorted(collect_gene_ids(df))
+    protein_accessions = sorted(collect_ncbi_protein_accessions(df))
 
     with out_sh.open("w", encoding="utf-8") as f:
         f.write("#!/usr/bin/env bash\n")
@@ -74,8 +86,14 @@ def write_ncbi_download_script(df: pd.DataFrame, out_sh: str | Path) -> None:
             f.write("# RefSeq protein accessions. If gene-id command fails, search these in NCBI Protein.\n")
             for acc in refseqs:
                 f.write(f"# RefSeq protein accession: {acc}\n")
+            f.write("\n")
 
-        if not gene_ids and not refseqs:
+        if protein_accessions:
+            f.write("# NCBI protein accessions from NCBI-derived Foldseek hits.\n")
+            for acc in protein_accessions:
+                f.write(f"# NCBI protein accession: {acc}\n")
+
+        if not gene_ids and not refseqs and not protein_accessions:
             f.write("echo 'No NCBI GeneID or RefSeq accession was found in the annotation table.'\n")
 
     out_sh.chmod(0o755)

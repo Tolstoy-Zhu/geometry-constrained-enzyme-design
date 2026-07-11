@@ -7,9 +7,11 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional
 
-import requests
+from .config import project_root
+from .http_utils import CachedSession
 
 
 @dataclass
@@ -27,19 +29,26 @@ class RcsbEntity:
 class RcsbClient:
     """Small wrapper for RCSB REST endpoints."""
 
-    def __init__(self, sleep_seconds: float = 0.15, timeout: int = 30):
+    def __init__(
+        self,
+        sleep_seconds: float = 0.15,
+        timeout: int = 30,
+        cache_dir: str | Path | None = None,
+    ):
         self.sleep_seconds = sleep_seconds
-        self.timeout = timeout
         self._entry_cache: Dict[str, List[RcsbEntity]] = {}
+        self.errors: Dict[str, str] = {}
+        self.http = CachedSession(
+            cache_dir or project_root() / ".cache" / "annotations" / "rcsb",
+            timeout=timeout,
+        )
 
     def _get_json(self, url: str) -> Optional[dict]:
-        try:
-            r = requests.get(url, timeout=self.timeout)
-            if r.status_code != 200:
-                return None
-            return r.json()
-        except requests.RequestException:
+        data = self.http.get_json(url)
+        if not isinstance(data, dict):
+            self.errors[url] = self.http.last_error or "RCSB record was not returned"
             return None
+        return data
 
     def get_polymer_entities(self, pdb_id: str) -> List[RcsbEntity]:
         """Return polymer entities for a PDB entry."""

@@ -1,0 +1,54 @@
+# AquaEsterNet-StructMine preset: AlphaFold DB Swiss-Prot search
+
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp
+  max_seqs: 1000
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: alphafold_swissprot
+    enabled: true
+    kind: swissprot
+    target_db: databases/afdb_swissprot
+    foldseek_database: Alphafold/Swiss-Prot
+    annotation_source: swissprot
+    # Pinned official object used when the Cloudflare redirect is unreachable in WSL.
+    archive_url: https://steineggerlab.s3.amazonaws.com/foldseek/afdb_swissprot.tar.gz
+    version_url: https://steineggerlab.s3.amazonaws.com/foldseek/afdb_swissprot.version
+    archive_prefix: afdb_swissprot
+    archive_size: 1557648318
+    archive_sha256: 2ae623b90e74ab8a42b6840f61f2ed3edfa2d4e006e04d6afa0eec5284c73d35
+
+filter:
+  min_alntmscore: 0.45
+  max_rmsd: 4.0
+  min_qcov: 0.60
+  min_tcov: 0.40
+  min_alnlen: 180
+  max_sequence_identity: 0.95
+
+annotation:
+  enable_rcsb: false
+  enable_uniprot: true
+  enable_ncbi: false
+  enable_alphafold: true
+  request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 200
+
+output:
+  out_prefix: results/Bur01_vs_alphafold_swissprot
+  run_root: results/runs

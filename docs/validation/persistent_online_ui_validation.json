@@ -1,0 +1,43 @@
+{
+  "validation_date": "2026-07-11",
+  "scope": "persistent_local_and_authenticated_online_ui",
+  "result": "PASS",
+  "automated_tests": {
+    "passed": 43,
+    "failed": 0,
+    "duration_seconds": 20.67
+  },
+  "required_files": {
+    "present": 73,
+    "missing": 0
+  },
+  "local_service": {
+    "origin": "http://127.0.0.1:8501",
+    "fixed_port": true,
+    "local_only_binding": true,
+    "logon_trigger": true,
+    "one_minute_recovery_trigger": true,
+    "streamlit_crash_recovery_seconds": 10.9,
+    "watchdog_recovery_seconds": 51.3
+  },
+  "online_demo": {
+    "transport": "Cloudflare Tunnel",
+    "cloudflared_version": "2026.7.1",
+    "cloudflared_sha256": "ccb0756de288d3c2c076d19764ca53e0849a10f2dd9c23f8656ac42bdeb45001",
+    "https_health_check": true,
+    "streamlit_websocket": true,
+    "application_password": "PBKDF2-SHA256, random salt, 600000 iterations",
+    "tunnel_crash_recovery_seconds": 26.1,
+    "watchdog_recovery_seconds": 53.4,
+    "password_preserved_during_tunnel_recovery": true,
+    "share_url_updated_during_tunnel_recovery": true,
+    "public_url_redacted": true
+  },
+  "security": {
+    "inbound_router_port_opened": false,
+    "runtime_secrets_git_ignored": true,
+    "current_user_secret_acl": true,
+    "server_side_open_folder_disabled_online": true,
+    "quick_tunnel_documented_as_non_production": true
+  }
+}
