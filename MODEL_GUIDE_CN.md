@@ -218,9 +218,13 @@ catalytic_core_score >= 20
 双击 start_ui.bat
 ```
 
+网页固定使用 `http://127.0.0.1:8501`。首次双击 `install_ui_autostart.bat` 后，Windows 登录时会自动启动后台守护程序；网页进程异常退出后会自动恢复，不需要一直保留命令窗口。`ui_status.bat` 用于查看状态，`stop_ui.bat` 用于停止，`uninstall_ui_autostart.bat` 只移除登录自启动。
+
 在左侧选择查询、链、数据库和阈值，点击“运行”。候选、结构、历史和诊断在同一工作台中查看。
 
 “AF预测”视图支持粘贴/上传 FASTA、选择已有候选、质量档、模板开关、逐次隐私确认、催化位点预览和修正、仅预测、预测并挖掘、取消，以及 pLDDT、PAE 和三维结构检查。
+
+在线专家演示时双击 `install_online_ui.bat`。模型和数据库仍在本机运行，外部浏览器通过带随机密码的 HTTPS 通道实时使用同一服务层。完整操作和安全限制见 `ONLINE_DEMO_GUIDE_CN.md`。
 
 ### AlphaFold2 预测
 

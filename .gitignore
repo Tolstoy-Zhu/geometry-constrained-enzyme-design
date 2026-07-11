@@ -8,6 +8,7 @@ __pycache__/
 venv/
 env/
 .cache/
+.tools/
 .pytest_cache/
 
 # Large databases

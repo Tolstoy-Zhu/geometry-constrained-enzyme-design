@@ -12,7 +12,15 @@
 start_ui.bat
 ```
 
-它会自动选择空闲端口并打开本地网页工作台。默认界面为中文，可切换英文。
+它会启动后台守护程序并打开固定地址 `http://127.0.0.1:8501`。网页不再依赖命令窗口持续打开；如果 Streamlit 意外退出，守护程序会自动重启。默认界面为中文，可切换英文。
+
+首次启用登录自启动时，双击：
+
+```text
+install_ui_autostart.bat
+```
+
+安装后，Windows 用户登录时会在后台启动网页，不会自动暴露到局域网或公网。其他控制入口：`stop_ui.bat` 停止网页，`ui_status.bat` 查看状态，`uninstall_ui_autostart.bat` 只移除自启动任务而不删除项目或结果。
 
 命令行入口：
 
@@ -184,6 +192,21 @@ python -m bur01_structmine.cli benchmark --engine tmtools
 
 候选可导出为 Excel、TSV 和 FASTA，也可在界面中重新注释。
 
+### 长期运行方式
+
+- 固定本机地址：`http://127.0.0.1:8501`。
+- Windows 登录后自动启动；不要求浏览器或命令窗口始终打开。
+- 每 5 秒检查一次健康状态，网页进程退出后自动重新启动。
+- Windows 计划任务每分钟触发一次恢复检查；守护程序本身异常退出后最多约 1 分钟恢复。
+- 状态和日志保存在 `.cache/ui_service/`，不会进入发布包或覆盖正式结果。
+- 默认仅本机可访问。休眠、关机或未登录 Windows 时网页不可访问；恢复并登录后会重新提供服务。
+
+### 在线专家演示
+
+双击 `install_online_ui.bat` 可建立带密码的 HTTPS 演示通道，其他电脑无需安装项目即可实时操作网页。程序会同时打开最新在线网址和本机分享文件 `.cache/remote_ui/SHARE_WITH_EXPERTS.txt`。
+
+默认 Quick Tunnel 的网址在通道重启后可能变化，适合临时展示，不等同于正式云托管。固定网址需要 Cloudflare 命名 Tunnel、自己的域名和 Access 允许名单。操作、安全边界和固定域名步骤见 `ONLINE_DEMO_GUIDE_CN.md`。
+
 ## 生产搜索
 
 准备完整 AlphaFold/Swiss-Prot Foldseek 数据库：
@@ -315,7 +338,7 @@ python -m bur01_structmine.cli benchmark --engine foldseek
 
 本机最终验收（2026-07-11）：
 
-- `34 passed`；`doctor` 为 `31 passed, 0 warnings, 0 failed`。
+- `43 passed`；`doctor` 为 `31 passed, 0 warnings, 0 failed`。
 - 8HFW 标准预测：5 个模型，rank_001 平均 pLDDT `98.07`、pTM `0.950`，相对实验结构 `min(qTM,tTM)=0.9925`。
 - Q9FVW3 候选标准预测：5 个模型，平均 pLDDT `83.54`、pTM `0.740`，相对 AlphaFold DB v6 `min(qTM,tTM)=0.7815`，来源运行和 accession 均可追溯。
 - 预测 8HFW 固定 Foldseek 基准：最低阳性 `0.8091` 高于最高阴性 `0.2493`，P00520 被拒绝。

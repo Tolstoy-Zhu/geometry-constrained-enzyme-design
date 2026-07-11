@@ -12,7 +12,15 @@ Double-click:
 start_ui.bat
 ```
 
-The launcher selects a free local port and opens the bilingual web workbench. Chinese is the default language.
+The launcher starts a background watchdog and opens the fixed local address `http://127.0.0.1:8501`. The web app no longer depends on an open terminal, and the watchdog restarts Streamlit after an unexpected exit. Chinese is the default language.
+
+To enable automatic startup at Windows logon, double-click:
+
+```text
+install_ui_autostart.bat
+```
+
+After installation, the workbench starts in the background when the current Windows user signs in. It is not exposed to the LAN or public internet. Use `stop_ui.bat` to stop it, `ui_status.bat` to inspect it, and `uninstall_ui_autostart.bat` to remove only the scheduled task without deleting project data.
 
 Command-line entry points:
 
@@ -156,6 +164,21 @@ The workbench has six views:
 
 Candidates can be exported as Excel, TSV, or FASTA and can be re-annotated from the same service layer.
 
+### Persistent local operation
+
+- Stable address: `http://127.0.0.1:8501`.
+- Automatic startup after Windows logon, without keeping a browser or console window open.
+- Health checks every five seconds and automatic Streamlit restart after failure.
+- A one-minute Task Scheduler recovery trigger restarts the watchdog itself when needed.
+- State and logs stay under `.cache/ui_service/`; they are excluded from releases and do not overwrite scientific results.
+- Access remains local-only. The page is unavailable while Windows is asleep, powered off, or awaiting user logon, and returns after resume/sign-in.
+
+### Online expert demonstration
+
+Double-click `install_online_ui.bat` to create a password-protected HTTPS demonstration tunnel. Experts can operate the workbench from another computer without installing the project. The launcher opens the current online URL and `.cache/remote_ui/SHARE_WITH_EXPERTS.txt`.
+
+The default Quick Tunnel URL may change after restart and is intended for temporary demonstrations rather than formal hosting. A durable hostname requires a Cloudflare named Tunnel, a domain, and an Access allowlist. See `ONLINE_DEMO_GUIDE_EN.md` for controls, security boundaries, and fixed-hostname setup.
+
 ## Production Search
 
 Prepare the complete AlphaFold/Swiss-Prot Foldseek database:
@@ -269,7 +292,7 @@ Tests use isolated temporary directories and do not write to formal `results`. S
 
 Final local acceptance on 2026-07-11:
 
-- `34 passed`; doctor reported `31 passed, 0 warnings, 0 failed`.
+- `43 passed`; doctor reported `31 passed, 0 warnings, 0 failed`.
 - The standard 8HFW prediction produced five models; rank_001 has mean pLDDT `98.07`, pTM `0.950`, and `min(qTM,tTM)=0.9925` against the experimental structure.
 - The traceable Q9FVW3 candidate prediction produced five models; rank_001 has mean pLDDT `83.54`, pTM `0.740`, and `min(qTM,tTM)=0.7815` against AlphaFold DB v6.
 - The predicted-8HFW Foldseek benchmark placed the lowest positive at `0.8091`, above the highest negative at `0.2493`, and rejected P00520.

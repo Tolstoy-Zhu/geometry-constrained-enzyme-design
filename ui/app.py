@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,7 @@ from bur01_structmine.prediction_sequence import (
     validate_sequence,
 )
 from bur01_structmine.results_parser import parse_pdb_chain
+from bur01_structmine.remote_auth import load_remote_access, verify_remote_password
 from bur01_structmine.run_context import make_run_id, mark_run_cancelled
 from bur01_structmine.visualization import StructureOverlay, align_structure_overlay
 
@@ -41,6 +43,7 @@ UI_CONFIG_ROOT = ROOT / "results" / "ui_configs"
 UI_STRUCTURE_CACHE = ROOT / ".cache" / "ui_structures"
 PREDICTION_ROOT = Path(os.environ.get("AQUA_PREDICTION_ROOT", ROOT / "results" / "predictions"))
 UI_PREDICTION_INPUTS = ROOT / "results" / "ui_prediction_inputs"
+REMOTE_ACCESS_PATH = Path(os.environ.get("AQUA_REMOTE_ACCESS_PATH", ROOT / ".cache" / "remote_ui" / "access.json"))
 
 COLORS = {
     "background": "#F7F9F8",
@@ -327,6 +330,8 @@ TEXT["zh"].update(
         "model_count": "模型数",
         "retrigger": "重新预测",
         "accession": "候选 accession",
+        "service_mode": "后台常驻 · 自动恢复",
+        "online_mode": "HTTPS 在线演示 · 密码保护",
     }
 )
 TEXT["en"].update(
@@ -364,6 +369,8 @@ TEXT["en"].update(
         "model_count": "Models",
         "retrigger": "Predict again",
         "accession": "Candidate accession",
+        "service_mode": "Persistent local service · auto-recovery",
+        "online_mode": "HTTPS expert demo · password protected",
     }
 )
 
@@ -413,6 +420,25 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+remote_access = load_remote_access(REMOTE_ACCESS_PATH)
+if remote_access is not None and not st.session_state.get("remote_authenticated", False):
+    st.title("AquaEsterNet-StructMine")
+    st.subheader("在线演示访问 / Secure remote access")
+    st.caption("请输入共享访问密码。模型计算仍在所有者电脑上运行，序列和结果不会托管到本页面服务器。")
+    with st.form("remote_access_login"):
+        remote_password = st.text_input("访问密码 / Access password", type="password", max_chars=256)
+        login_submitted = st.form_submit_button("进入工作台 / Open workbench", type="primary")
+    if login_submitted:
+        if verify_remote_password(remote_password, remote_access):
+            st.session_state.remote_authenticated = True
+            st.session_state.remote_auth_failures = 0
+            st.rerun()
+        else:
+            st.session_state.remote_auth_failures = st.session_state.get("remote_auth_failures", 0) + 1
+            time.sleep(min(3.0, float(st.session_state.remote_auth_failures)))
+            st.error("访问密码不正确 / Incorrect access password")
+    st.stop()
 
 
 def tx(key: str) -> str:
@@ -942,6 +968,9 @@ language_label = st.sidebar.segmented_control(
     width="stretch",
 )
 st.session_state.language = "zh" if language_label == "中文" else "en"
+if remote_access is not None and st.sidebar.button("退出在线会话 / Sign out", width="stretch"):
+    st.session_state.remote_authenticated = False
+    st.rerun()
 
 st.sidebar.header(tx("settings"))
 query_path = st.sidebar.text_input(tx("query"), value="data/query/Bur01m.pdb")
@@ -989,7 +1018,10 @@ state, exit_code = process_state()
 prediction_state, prediction_exit_code = prediction_process_state()
 
 st.title("AquaEsterNet-StructMine")
-st.caption("v0.3.0  |  Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0")
+service_label = f"  |  {tx('service_mode')}" if os.environ.get("AQUA_UI_SERVICE") == "1" else ""
+if remote_access is not None:
+    service_label += f"  |  {tx('online_mode')}"
+st.caption(f"v0.3.0  |  Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0{service_label}")
 
 tabs = st.tabs(
     [
@@ -1044,7 +1076,7 @@ with tabs[0]:
         tx("open_folder"),
         icon=":material/folder_open:",
         width="stretch",
-        disabled=selected_manifest is None,
+        disabled=selected_manifest is None or remote_access is not None,
     ) and selected_manifest:
         open_folder(selected_manifest["_run_dir"])
 
@@ -1237,7 +1269,7 @@ with tabs[1]:
         tx("open_folder"),
         icon=":material/folder_open:",
         width="stretch",
-        disabled=selected_prediction_for_open is None,
+        disabled=selected_prediction_for_open is None or remote_access is not None,
         key="open_prediction_folder",
     ) and selected_prediction_for_open:
         open_folder(selected_prediction_for_open["_prediction_dir"])
@@ -1544,7 +1576,13 @@ with tabs[4]:
         for warning in detail.get("warnings", []):
             st.warning(warning)
         history_actions = st.columns(2)
-        if history_actions[0].button(tx("open_folder"), icon=":material/folder_open:", width="stretch", key="history_open"):
+        if history_actions[0].button(
+            tx("open_folder"),
+            icon=":material/folder_open:",
+            width="stretch",
+            key="history_open",
+            disabled=remote_access is not None,
+        ):
             open_folder(detail["_run_dir"])
         if history_actions[1].button(tx("reannotate"), icon=":material/sync:", width="stretch", key="history_annotate"):
             try:

@@ -2,7 +2,15 @@
 
 ## User Entry Points
 
-- `start_ui.bat`: double-click bilingual web launcher with automatic free-port selection.
+- `start_ui.bat`: starts or reconnects to the persistent local UI at `127.0.0.1:8501` and opens the browser.
+- `install_ui_autostart.bat`: installs the current-user Windows logon task and starts the UI.
+- `stop_ui.bat`: stops the watchdog and Streamlit process without removing data.
+- `ui_status.bat`: displays health, task state, process IDs, restart count, and log path.
+- `uninstall_ui_autostart.bat`: stops the UI and removes only the scheduled task.
+- `install_online_ui.bat` / `start_online_ui.bat`: install or start authenticated HTTPS expert access.
+- `online_ui_status.bat` / `stop_online_ui.bat`: inspect or stop public access.
+- `reset_online_password.bat`: rotate the shared expert password and rebuild the tunnel.
+- `uninstall_online_ui.bat`: remove the remote task and local access secrets without deleting project data.
 - `start_here.py`: compatibility launcher for doctor, benchmark, production, validation, and file checks.
 - `run_pipeline.py`: direct shared-pipeline runner.
 - `prepare_databases.py`: Foldseek database download and preparation.
@@ -14,6 +22,8 @@
 - `README.md`
 - `MODEL_GUIDE_CN.md`
 - `MODEL_GUIDE_EN.md`
+- `ONLINE_DEMO_GUIDE_CN.md`
+- `ONLINE_DEMO_GUIDE_EN.md`
 - `PROJECT_OVERVIEW.md`
 - `PROJECT_MANIFEST.md`
 - `VALIDATION_REPORT.md`
@@ -22,10 +32,12 @@
 - `THIRD_PARTY_LICENSES.md`
 - `docs/RELEASE_NOTES_CN.md` / `docs/RELEASE_NOTES_EN.md`: bilingual v0.3 release notes.
 - `docs/validation/v0.3_validation_summary.json`: sanitized acceptance summary.
+- `docs/validation/persistent_online_ui_validation.json`: sanitized local/online service recovery and security evidence.
 - `docs/screenshots/af_prediction_desktop.png` / `af_prediction_mobile.png`: sanitized UI evidence.
 - `requirements.lock.txt`: exact verification-environment dependency lock.
 - `configs/prediction_runtime.lock.yaml`: isolated WSL prediction-runtime lock and source inventory.
 - `configs/colabfold-pip-lock.txt`: exact installed Python/CUDA transitive package versions.
+- `configs/cloudflared_runtime.lock.json`: verified Windows tunnel binary source, checksum, license, and deployment scope.
 - `.github/workflows/ci.yml`: Python 3.11 non-GPU validation.
 
 ## Configuration
@@ -60,6 +72,9 @@
 - `ui/app.py`: bilingual Streamlit workbench.
 - `.streamlit/config.toml`: fixed color theme and local server defaults.
 - `src/bur01_structmine/visualization.py`: TM-align superposition for py3Dmol.
+- `scripts/windows/ui_service.ps1`: local-only watchdog, health check, automatic recovery, state/log handling, and Windows logon-task controller.
+- `scripts/windows/remote_ui_service.ps1`: authenticated Cloudflare HTTPS tunnel, quick/named modes, password rotation, watchdog, and online state controller.
+- `src/bur01_structmine/remote_auth.py`: bounded PBKDF2-SHA256 access-record loading and constant-time password verification.
 
 ## Core Package
 

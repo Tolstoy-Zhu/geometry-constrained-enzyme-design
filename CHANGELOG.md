@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Persistent Local Web Service
+
+- Replaced the terminal-bound Windows launcher with a fixed-port background watchdog at `127.0.0.1:8501`.
+- Added per-user Windows logon startup, five-second health checks, automatic Streamlit recovery, and a one-minute Task Scheduler recovery trigger for the watchdog itself.
+- Added double-click install, start, stop, status, and auto-start removal entry points.
+- Kept the service local-only and stored machine-specific state and logs under the ignored `.cache/ui_service/` directory.
+- Added bilingual operating documentation and source-level regression checks for the persistent UI assets.
+
+### Authenticated Online Demonstration
+
+- Added a Cloudflare HTTPS tunnel controller so invited experts can operate the local workbench from other computers without opening an inbound router port.
+- Added quick demonstration mode plus token-based named-tunnel support for a future fixed hostname.
+- Added 600,000-iteration PBKDF2-SHA256 application authentication, password rotation, current-user secret ACLs, and ignored share files.
+- Added logon startup, one-minute watchdog recovery, tunnel-process recovery, current-URL tracking, and direct no-proxy health checks.
+- Disabled server-side "open results folder" actions while online access is enabled.
+- Added bilingual online demonstration guides and automated authentication/asset tests.
+
 ## 0.3.0 - 2026-07-11
 
 ### Local AlphaFold2 Prediction

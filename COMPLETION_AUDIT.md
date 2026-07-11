@@ -62,7 +62,7 @@ Publication status: **ready for non-draft PR; merge and Release remain user-cont
 
 | Check | Status | Observed |
 |---|---|---|
-| Automated tests | PASS | 34 passed, 0 failed |
+| Automated tests | PASS | 43 passed, 0 failed |
 | Doctor | PASS | 31 passed, 0 warnings, 0 failed |
 | 8HFW prediction | PASS | pLDDT 98.07, pTM 0.950, min TM 0.9925 |
 | Q9FVW3 prediction | PASS | pLDDT 83.54, pTM 0.740, min TM 0.7815 |
@@ -85,6 +85,21 @@ Publication status: **ready for non-draft PR; merge and Release remain user-cont
 | 1440x900 acceptance | PASS | No overflow; focus, charts, and WebGL nonblank |
 | 390x844 acceptance | PASS | No overflow; focus, charts, and WebGL nonblank |
 | Specified visual palette | PASS | Structure-green theme, amber/red evidence colors, IBM Plex |
+
+## Persistent And Online UI Extension
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Background local service | PASS | Fixed localhost port, hidden watchdog, five-second health loop |
+| Windows logon startup | PASS | Per-user scheduled task with logon and one-minute recovery triggers |
+| Local process recovery | PASS | Streamlit and watchdog fault injection both recovered automatically |
+| Authenticated online access | PASS | HTTPS tunnel plus PBKDF2 application password |
+| Other-computer interaction | PASS | Public HTTPS health and Streamlit WebSocket negotiation succeeded |
+| Tunnel recovery | PASS | New URL propagated to the ignored share file without changing the password |
+| Safe shutdown | PASS | Public access can be stopped without deleting local UI, results, databases, or vault files |
+| Optional fixed-hostname upgrade | READY | Token mode implemented; owner can add a Cloudflare domain, hostname, and Access policy when a permanent branded URL is desired |
+
+The immediate expert-demonstration route is operational. A Quick Tunnel is not treated as permanent hosting or an SLA-backed endpoint; a stable hostname remains an external-account configuration step.
 
 ## CI, Documentation, And Packaging
 

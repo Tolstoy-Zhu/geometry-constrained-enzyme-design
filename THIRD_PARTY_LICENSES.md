@@ -27,10 +27,18 @@ This file is an inventory, not a replacement for the complete license text shipp
 | tqdm | 4.68.4 | MPL-2.0 and MIT | https://github.com/tqdm/tqdm |
 | pytest | 9.1.1 | MIT | https://github.com/pytest-dev/pytest |
 | Playwright for Python | 1.61.0 | Apache-2.0 | https://github.com/microsoft/playwright-python |
+| cloudflared | 2026.7.1 | Apache-2.0 | https://github.com/cloudflare/cloudflared |
 
 Exact transitive dependency versions are recorded in `requirements.lock.txt`.
 The isolated WSL prediction environment is recorded in `configs/prediction_runtime.lock.yaml`, `/opt/colabfold/pip-freeze.txt`, and `/opt/colabfold/conda-lock.json`.
 UI acceptance uses the locally installed Microsoft Edge browser under Microsoft's product terms; no browser binary is redistributed.
+
+## Cloudflare Tunnel
+
+- The optional online demonstration route uses the separately downloaded `cloudflared` executable. The binary is not committed to this repository or included in release archives.
+- Version, download URL, byte length, SHA-256, and license metadata are recorded in `configs/cloudflared_runtime.lock.json`.
+- A Quick Tunnel is a Cloudflare network service governed by Cloudflare's applicable online-services terms and has no uptime guarantee. It is used here only for temporary expert demonstrations.
+- A durable public hostname requires an owner-managed Cloudflare account, named Tunnel, DNS hostname, and recommended Access policy. Tunnel credentials remain local and are not distributed with the project.
 
 ## AlphaFold Parameters And Public MSA
 

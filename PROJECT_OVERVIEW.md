@@ -17,7 +17,10 @@ The fixed query is PDB 8HFW chain A, residues 12-294, with Ser111/Asp241/His274 
 
 | Route | Command | Role |
 |---|---|---|
-| Web workbench | `start_ui.bat` | Bilingual run, AF prediction, candidates, structure, history, and doctor views |
+| Persistent web workbench | `install_ui_autostart.bat`, then `start_ui.bat` | Fixed local port, logon startup, automatic recovery, and six bilingual views |
+| Web status / stop | `ui_status.bat` / `stop_ui.bat` | Inspect or stop the local background service |
+| Online expert demo | `install_online_ui.bat` | Password-protected HTTPS access to the same local compute service |
+| Online status / stop | `online_ui_status.bat` / `stop_online_ui.bat` | Inspect or immediately close public access |
 | Doctor | `python start_here.py --action doctor` | Environment and database diagnosis |
 | Formal benchmark | `python start_here.py --action benchmark` | Fixed positive/negative Foldseek acceptance |
 | TM-align preview | `python -m bur01_structmine.cli benchmark --engine tmtools` | Small-set preview only |
@@ -51,7 +54,7 @@ Each run under `results/runs/<run_id>/` includes a validated configuration snaps
 - Traceable Q9FVW3 prediction: five models, mean pLDDT `83.54`, pTM `0.740`, AlphaFold DB v6 minimum TM-score `0.7815`.
 - Predicted-query Foldseek benchmark: PASS; lowest positive `0.8091`, highest negative `0.2493`, P00520 rejected.
 - Full AlphaFold/Swiss-Prot v6 2025_03 search: 590,183 structures, 999 raw hits, 12 filtered candidates, 12 valid annotations, zero warnings.
-- Automated evidence: 34 tests, 31 doctor checks, and both desktop/mobile UI acceptance profiles passed.
+- Automated evidence: 43 tests, 31 doctor checks, local/online recovery injection, and both desktop/mobile UI acceptance profiles passed.
 
 ## Main Documents
 

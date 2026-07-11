@@ -178,7 +178,11 @@ Web workbench:
 Double-click start_ui.bat
 ```
 
+The workbench uses the stable address `http://127.0.0.1:8501`. Double-click `install_ui_autostart.bat` once to install a per-user Windows logon task and background watchdog. Streamlit is restarted after an unexpected exit, so no console window needs to remain open. Use `ui_status.bat`, `stop_ui.bat`, and `uninstall_ui_autostart.bat` for status, stop, and scheduled-task removal.
+
 The AF Prediction view supports FASTA paste/upload, existing candidates, presets, templates, per-job privacy consent, catalytic-site preview and correction, predict-only, predict-and-mine, cancellation, pLDDT, PAE, and a confidence-colored structure.
+
+For an expert demonstration, double-click `install_online_ui.bat`. Models and databases remain local while remote browsers use the same service layer through an authenticated HTTPS tunnel. See `ONLINE_DEMO_GUIDE_EN.md` for operation and security limits.
 
 AlphaFold2 prediction:
 

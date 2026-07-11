@@ -35,11 +35,31 @@ The ColabFold result-archive read timeout patch is provenance-recorded with orig
 ## Automated Checks
 
 ```text
-34 passed in 12.29s
+43 passed in 20.67s
 Doctor summary: 31 passed, 0 warnings, 0 failed
 ```
 
 Tests use isolated temporary directories. The suite covers sequence validation, presets, command construction, Windows/WSL path conversion, cache and retry behavior, semantic MSA failures, process locks, cancellation, parameter provenance, result parsing, catalytic mapping, manifests, prediction-to-mining lineage, chain parsing, TM-align, Foldseek filtering, annotation, WASE-screen, configuration, and output contracts.
+
+The current suite additionally covers persistent Windows launch assets, local-only origin binding, remote access-record parsing, bounded PBKDF2 password verification, authenticated Streamlit gate behavior, online entry points, and secret-file exclusion.
+
+## Persistent And Online UI Extension
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Stable local address | PASS | `127.0.0.1:8501`, health response `ok` |
+| Logon auto-start | PASS | Current-user Task Scheduler logon trigger |
+| Streamlit recovery | PASS | Forced process termination recovered in 10.9 s with a new PID |
+| Local watchdog recovery | PASS | One-minute recovery trigger restored the watchdog in 51.3 s |
+| HTTPS expert access | PASS | Cloudflare Tunnel health endpoint reachable without an inbound port |
+| Real-time protocol | PASS | Public `wss://.../_stcore/stream` negotiated the `streamlit` subprotocol |
+| Application authentication | PASS | Random-salt PBKDF2-SHA256, 600,000 iterations, constant-time comparison |
+| Tunnel recovery | PASS | Forced termination recovered in 26.1 s; share URL updated and password preserved |
+| Remote watchdog recovery | PASS | One-minute recovery trigger restored the watchdog in 53.4 s without dropping the tunnel |
+| Secret exclusion | PASS | Access/share/state files matched the ignored `.cache/` rule |
+| Remote host-side action safety | PASS | "Open results folder" disabled while online access is enabled |
+
+Machine-specific URLs, passwords, process IDs, logs, and task state are excluded from the source tree. Sanitized evidence is stored in `docs/validation/persistent_online_ui_validation.json`.
 
 GitHub Actions uses Python 3.11 with the deterministic fake ColabFold executable. CI does not install GPU drivers, download model weights, or call the public MSA service.
 
