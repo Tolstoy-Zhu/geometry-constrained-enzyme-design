@@ -250,9 +250,28 @@ function Test-RemoteHealth {
         $handler.UseProxy = $false
         $client = New-Object System.Net.Http.HttpClient($handler)
         $client.Timeout = [TimeSpan]::FromSeconds(10)
-        $response = $client.GetAsync("$($RemoteUrl.TrimEnd('/'))/_stcore/health").GetAwaiter().GetResult()
-        $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
-        return $response.IsSuccessStatusCode -and $content.Trim() -eq "ok"
+        for ($attempt = 0; $attempt -lt 3; $attempt++) {
+            $response = $null
+            try {
+                $response = $client.GetAsync("$($RemoteUrl.TrimEnd('/'))/_stcore/health").GetAwaiter().GetResult()
+                $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                if ($response.IsSuccessStatusCode -and $content.Trim() -eq "ok") {
+                    return $true
+                }
+            }
+            catch {
+                if ($attempt -eq 2) {
+                    return $false
+                }
+            }
+            finally {
+                if ($null -ne $response) {
+                    $response.Dispose()
+                }
+            }
+            Start-Sleep -Milliseconds 500
+        }
+        return $false
     }
     catch {
         return $false
