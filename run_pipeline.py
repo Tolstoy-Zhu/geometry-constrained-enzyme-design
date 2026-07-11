@@ -1,4 +1,4 @@
-"""Command-line entry point for Bur01-StructMine V1.
+"""Command-line entry point for AquaEsterNet-StructMine.
 
 Run examples:
   python run_pipeline.py --config config.yaml
@@ -20,7 +20,7 @@ from bur01_structmine.pipeline import run_pipeline  # noqa: E402
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Bur01-StructMine V1 pipeline")
+    parser = argparse.ArgumentParser(description="AquaEsterNet-StructMine pipeline")
     parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
     parser.add_argument(
         "--skip-foldseek",
@@ -32,13 +32,24 @@ def main() -> None:
         default=None,
         help="Existing Foldseek TSV file when --skip-foldseek is used",
     )
+    parser.add_argument("--run-id", default=None, help="Optional stable run identifier")
+    parser.add_argument("--output-root", default=None, help="Versioned run directory root")
+    parser.add_argument(
+        "--legacy-output",
+        action="store_true",
+        help="Also use the configured fixed output prefix; intended only for compatibility checks",
+    )
     args = parser.parse_args()
 
-    run_pipeline(
+    summary = run_pipeline(
         config_path=args.config,
         skip_foldseek=args.skip_foldseek,
         input_tsv=args.input_tsv,
+        run_id=args.run_id,
+        output_root=args.output_root,
+        legacy_output=args.legacy_output,
     )
+    print(f"Manifest: {summary.manifest_path}")
 
 
 if __name__ == "__main__":

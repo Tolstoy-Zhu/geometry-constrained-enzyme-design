@@ -1,0 +1,79 @@
+schema_version: 1
+project_version: 0.3.0
+scope: local_monomer_alphafold2_ptm
+
+runtime:
+  distribution: Ubuntu-Foldseek
+  install_root: /opt/colabfold
+  python: "3.13.14"
+  cuda_family: "12"
+  gpu_required: true
+  cpu_fallback: false
+  jax_unified_memory: false
+  amber_relax_device: cpu
+
+packages:
+  colabfold: "1.6.1"
+  alphafold-colabfold: "2.3.13"
+  jax: "0.5.3"
+  openmm: "8.5.2"
+  mmseqs2: "18.8cc5c"
+  hhsuite: "3.3.0"
+  kalign2: "2.04"
+  aria2: "1.36.0"
+
+sources:
+  colabfold: https://github.com/sokrypton/ColabFold/tree/v1.6.1
+  localcolabfold: https://github.com/YoshitakaMo/localcolabfold
+  alphafold_parameters: https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar
+  pypi_primary: https://pypi.tuna.tsinghua.edu.cn/simple
+  pypi_fallback: https://pypi.org/simple
+  public_msa_service: https://api.colabfold.com
+
+network_policy:
+  public_msa_serialized: true
+  attempts: 3
+  retry_delays_seconds: [15, 30]
+  cache_key: normalized_sequence_sha256
+  per_job_consent: true
+
+model_parameters:
+  archive_sha256: ad158bc5e80eb6fa339928c2ad9a052e5386bb1a650acf3c39b4fb57da4e369d
+  archive_size_bytes: 3722752000
+  license: CC-BY-NC-SA-4.0
+  files:
+    params_model_1_ptm.npz: 5e564f79af5bcd54ccef6e2a6bb0ff01015d01650ebc41d4575e35f0de9ecc84
+    params_model_2_ptm.npz: 23645d9a82c4af2ed54cd48a7b3c1c2575dc6aa9fe931adb4d7203ca5f0dc398
+    params_model_3_ptm.npz: b53a724294cdd46a45d530b306bced8e429ffee74a4f9a2a897551b30966c415
+    params_model_4_ptm.npz: 07d0e285ad1406ce3d91a2f6633a8ce9ee99155a53d24ee7783f8fd1e89f5d3a
+    params_model_5_ptm.npz: 2f8d0bd193e7d6e837958ba92acdc3f02b23b61bf841fa043fc076ee0e1996a5
+
+prediction_presets:
+  quick:
+    model_type: alphafold2_ptm
+    num_models: 1
+    num_recycle: 3
+    num_seeds: 1
+    num_relax: 0
+  standard:
+    model_type: alphafold2_ptm
+    num_models: 5
+    num_recycle: 3
+    num_seeds: 1
+    num_relax: 1
+  high:
+    model_type: alphafold2_ptm
+    num_models: 5
+    num_recycle: 12
+    num_seeds: 3
+    num_relax: 1
+
+reproducibility:
+  installer: scripts/install_colabfold_wsl.sh
+  parameter_installer: scripts/install_alphafold_params.sh
+  local_package_freeze: /opt/colabfold/pip-freeze.txt
+  local_conda_lock: /opt/colabfold/conda-lock.json
+  local_install_provenance: /opt/colabfold/INSTALL_PROVENANCE.txt
+  model_parameter_hashes: recorded in each completed prediction manifest after download
+  network_patch: scripts/patch_colabfold_result_timeout.py
+  network_patch_scope: result archive read timeout only; no algorithm or MSA-content change

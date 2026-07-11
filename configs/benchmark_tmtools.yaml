@@ -1,0 +1,47 @@
+# Fixed Bur01-like small-set preview. This does not replace Foldseek acceptance.
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp/benchmark
+  max_seqs: 100
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: benchmark_v01_preview
+    enabled: true
+    kind: custom_structure
+    search_engine: tmtools_tmalign
+    structure_dir: data/benchmark/structures
+    annotation_source: auto
+
+filter:
+  min_alntmscore: 0.45
+  max_rmsd: 4.0
+  min_qcov: 0.60
+  min_tcov: 0.40
+  min_alnlen: 180
+  max_sequence_identity: 1.0
+
+annotation:
+  enable_rcsb: true
+  enable_uniprot: true
+  enable_ncbi: false
+  enable_alphafold: true
+  request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 100
+
+output:
+  out_prefix: results/Bur01_benchmark_tmtools_preview
+  run_root: results/runs

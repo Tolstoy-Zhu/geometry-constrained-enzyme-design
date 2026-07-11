@@ -1,0 +1,48 @@
+# AquaEsterNet-StructMine preset: local AlphaFold structures downloaded by scripts/download_alphafold_structures.py
+
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp
+  max_seqs: 1000
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: alphafold_local_structures
+    enabled: true
+    kind: custom_structure
+    structure_dir: data/alphafold/structures
+    target_db: databases/alphafold_local_structures
+    annotation_source: alphafold
+
+filter:
+  min_alntmscore: 0.45
+  max_rmsd: 4.0
+  min_qcov: 0.60
+  min_tcov: 0.40
+  min_alnlen: 180
+  max_sequence_identity: 0.95
+
+annotation:
+  enable_rcsb: false
+  enable_uniprot: true
+  enable_ncbi: false
+  enable_alphafold: true
+  request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 200
+
+output:
+  out_prefix: results/Bur01_vs_alphafold_local_structures
+  run_root: results/runs

@@ -1,0 +1,115 @@
+{
+  "benchmark_id": "bur01_like_v0.1",
+  "prepared_at": "2026-07-11T01:50:41.865364+00:00",
+  "records": [
+    {
+      "label": "8HFW",
+      "role": "self_positive",
+      "path": "data\\benchmark\\structures\\8HFW_A.pdb",
+      "source_url": "https://www.rcsb.org/structure/8HFW",
+      "sha256": "9f51637496713b18d3ec8f0586a1aef19d3c8f96bd3e48fda9e9af6e88da24fe",
+      "chains": [
+        "A"
+      ],
+      "residues_by_chain": {
+        "A": 283
+      }
+    },
+    {
+      "label": "1XKL",
+      "role": "related_positive",
+      "path": "data\\benchmark\\structures\\1XKL.pdb",
+      "source_url": "https://files.rcsb.org/download/1XKL.pdb",
+      "sha256": "07118834418745b928ea8f40c1524955858668d1ccae5f9c790d05745dc071ff",
+      "chains": [
+        "A",
+        "B",
+        "C",
+        "D"
+      ],
+      "residues_by_chain": {
+        "A": 249,
+        "B": 247,
+        "C": 248,
+        "D": 248
+      }
+    },
+    {
+      "label": "6TJ2",
+      "role": "related_positive",
+      "path": "data\\benchmark\\structures\\6TJ2.pdb",
+      "source_url": "https://files.rcsb.org/download/6TJ2.pdb",
+      "sha256": "53e8e06ae8fbbd2dc42290fe0467a05c30ea4f6932f1bde8df00f494e9a98700",
+      "chains": [
+        "A",
+        "B",
+        "C"
+      ],
+      "residues_by_chain": {
+        "A": 243,
+        "B": 243,
+        "C": 242
+      }
+    },
+    {
+      "label": "Q6RYA0",
+      "role": "related_positive",
+      "path": "data\\benchmark\\structures\\AF-Q6RYA0-F1-model_v6.pdb",
+      "source_url": "https://alphafold.ebi.ac.uk/files/AF-Q6RYA0-F1-model_v6.pdb",
+      "model_version": "6",
+      "global_plddt": "97.19",
+      "sha256": "d9ae82d2175f7975f9d9e2108b045af0a0b5c829df313f9004b748047e56cca6",
+      "chains": [
+        "A"
+      ],
+      "residues_by_chain": {
+        "A": 260
+      }
+    },
+    {
+      "label": "Q9FVW3",
+      "role": "related_positive",
+      "path": "data\\benchmark\\structures\\AF-Q9FVW3-F1-model_v6.pdb",
+      "source_url": "https://alphafold.ebi.ac.uk/files/AF-Q9FVW3-F1-model_v6.pdb",
+      "model_version": "6",
+      "global_plddt": "83.06",
+      "sha256": "9ca8bbbd0f1fa97d947bb641f2f36a4ada6798478f42ad785e1bcaf21070d65e",
+      "chains": [
+        "A"
+      ],
+      "residues_by_chain": {
+        "A": 348
+      }
+    },
+    {
+      "label": "P60174",
+      "role": "length_matched_negative",
+      "path": "data\\benchmark\\structures\\AF-P60174-F1-model_v6.pdb",
+      "source_url": "https://alphafold.ebi.ac.uk/files/AF-P60174-F1-model_v6.pdb",
+      "model_version": "6",
+      "global_plddt": "96.69",
+      "sha256": "049ee02403281d4a530e0cb7b005109832af8dcbbc6e0bed3e7ff23aeb0a648d",
+      "chains": [
+        "A"
+      ],
+      "residues_by_chain": {
+        "A": 249
+      }
+    },
+    {
+      "label": "P00520",
+      "role": "remote_negative",
+      "path": "data\\benchmark\\structures\\AF-P00520-F1-model_v6.pdb",
+      "source_url": "https://alphafold.ebi.ac.uk/files/AF-P00520-F1-model_v6.pdb",
+      "model_version": "6",
+      "global_plddt": "63.44",
+      "sha256": "902965da2f9fe761acb4261c08f5df06e504eadbffee9c716fbdbe111582cd7c",
+      "chains": [
+        "A"
+      ],
+      "residues_by_chain": {
+        "A": 1123
+      }
+    }
+  ]
+}

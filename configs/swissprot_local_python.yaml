@@ -1,0 +1,52 @@
+# AquaEsterNet-StructMine preset: small local Swiss-Prot/AlphaFold TM-align preview
+#
+# Use this for reviewed UniProt/Swiss-Prot AlphaFold structures downloaded by
+# scripts/download_alphafold_structures.py. It runs TM-align through tmtools
+# and verifies Swiss-Prot identity through UniProt reviewed metadata.
+
+query:
+  pdb_file: data/query/Bur01m.pdb
+  fasta_file: data/query/Bur01m_seed.fasta
+  pdb_id: 8HFW
+  chain: A
+  residue_range: "12-294"
+  source_url: https://www.rcsb.org/structure/8HFW
+
+foldseek:
+  executable: foldseek
+  backend: auto
+  wsl_distribution: Ubuntu-Foldseek
+  wsl_executable: /opt/foldseek/bin/foldseek
+  tmp_dir: tmp
+  max_seqs: 1000
+  threads: 16
+  prepare_databases: false
+
+search_databases:
+  - name: swissprot_local_python
+    enabled: true
+    kind: swissprot
+    search_engine: tmtools_tmalign
+    structure_dir: data/alphafold/structures
+    annotation_source: swissprot
+
+filter:
+  min_alntmscore: 0.35
+  max_rmsd: 6.0
+  min_qcov: 0.50
+  min_tcov: 0.30
+  min_alnlen: 120
+  max_sequence_identity: 1.0
+
+annotation:
+  enable_rcsb: false
+  enable_uniprot: true
+  enable_ncbi: false
+  enable_alphafold: true
+  request_sleep_seconds: 0.15
+  cache_dir: .cache/annotations
+  max_records: 200
+
+output:
+  out_prefix: results/Bur01_vs_swissprot_local_python
+  run_root: results/runs

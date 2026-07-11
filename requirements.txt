@@ -1,6 +1,12 @@
 biopython>=1.83
+numpy>=1.24.0
 pandas>=2.0.0
 openpyxl>=3.1.0
 requests>=2.31.0
 PyYAML>=6.0.1
 tqdm>=4.66.0
+pydantic>=2.13.4,<3
+tmtools==0.3.0
+streamlit>=1.59.1,<2
+plotly>=6.9.0,<7
+py3Dmol>=2.5.5,<3

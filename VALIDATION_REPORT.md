@@ -1,0 +1,147 @@
+# AquaEsterNet-StructMine v0.3 Validation Report
+
+Validation date: 2026-07-11
+
+Project version: 0.3.0
+
+Overall result: **PASS**
+
+## Scope
+
+This report covers the v0.3 monomer AlphaFold2 workflow, dynamic prediction-to-mining integration, real Foldseek acceptance, complete AlphaFold/Swiss-Prot search, bilingual UI, non-GPU CI path, reproducibility records, and public-package safeguards.
+
+Existing v0.2 results, databases, the Obsidian vault, and prior delivery archives were preserved. A separate pre-v0.3 snapshot was created before implementation.
+
+## Environment
+
+| Component | Verified value |
+|---|---|
+| Windows Python | 3.11.9 |
+| WSL distribution | Ubuntu-Foldseek |
+| GPU | NVIDIA GeForce RTX 4080, 16 GB |
+| LocalColabFold | 1.6.1 |
+| AlphaFold-ColabFold | 2.3.13 |
+| JAX | 0.5.3, CUDA device detected |
+| OpenMM | 8.5.2, CUDA platform available |
+| MMseqs2 | 18.8cc5c |
+| HHsuite | 3.3.0 |
+| Kalign | 2.04 |
+| Foldseek | `7f4b94644d6b210af4530e04a9fdc9e4bb64ea66` |
+| AlphaFold parameter archive SHA-256 | `ad158bc5e80eb6fa339928c2ad9a052e5386bb1a650acf3c39b4fb57da4e369d` |
+| PTM parameter checksums | Five recorded and present |
+
+The ColabFold result-archive read timeout patch is provenance-recorded with original and patched source hashes and declares no algorithm change. JAX unified memory is disabled for stable 16 GB allocation; model type, weights, recycles, seeds, MSA, and ranking are unchanged.
+
+## Automated Checks
+
+```text
+34 passed in 12.29s
+Doctor summary: 31 passed, 0 warnings, 0 failed
+```
+
+Tests use isolated temporary directories. The suite covers sequence validation, presets, command construction, Windows/WSL path conversion, cache and retry behavior, semantic MSA failures, process locks, cancellation, parameter provenance, result parsing, catalytic mapping, manifests, prediction-to-mining lineage, chain parsing, TM-align, Foldseek filtering, annotation, WASE-screen, configuration, and output contracts.
+
+GitHub Actions uses Python 3.11 with the deterministic fake ColabFold executable. CI does not install GPU drivers, download model weights, or call the public MSA service.
+
+## Real 8HFW Prediction
+
+Input: public PDB 8HFW chain A sequence, 283 aa.
+
+Preset: standard, five AlphaFold2-PTM models, three recycles, one seed, rank_001 Amber relaxation, templates off.
+
+| Check | Observed | Required | Result |
+|---|---:|---:|---|
+| Ranked models | 5 | 5 | PASS |
+| rank_001 mean pLDDT | 98.0674 | >= 70 | PASS |
+| rank_001 pTM | 0.950 | valid | PASS |
+| qTM vs experimental 8HFW | 0.9925 | >= 0.75 | PASS |
+| tTM vs experimental 8HFW | 0.9925 | >= 0.75 | PASS |
+| RMSD | 0.554 Å | reported | PASS |
+| Catalytic mapping | S111->100, D241->230, H274->263; identities match | complete | PASS |
+| Weight checksums | 5 | non-empty | PASS |
+
+The mapped prediction positions are sequence indices. The reference labels retain the experimental PDB residue numbers 111, 241, and 274.
+
+## Real Q9FVW3 Prediction
+
+Input lineage: Q9FVW3 selected from a completed, annotated AlphaFold/Swiss-Prot mining run. The prediction manifest records both the source run and accession.
+
+| Check | Observed | Required | Result |
+|---|---:|---:|---|
+| Ranked models | 5 | 5 | PASS |
+| rank_001 mean pLDDT | 83.5407 | >= 70 | PASS |
+| rank_001 pTM | 0.740 | valid | PASS |
+| qTM vs AlphaFold DB v6 | 0.7815 | >= 0.75 | PASS |
+| tTM vs AlphaFold DB v6 | 0.7815 | >= 0.75 | PASS |
+| aligned coverage | 0.8247 / 0.8247 | reported | PASS |
+| RMSD | 2.386 Å | reported | PASS |
+| Candidate lineage | source run and Q9FVW3 recorded | traceable | PASS |
+
+The lower confidence relative to 8HFW is concentrated by the full-length plant protein context, including an N-terminal targeting/low-complexity region. Acceptance is based on the stated global TM-score threshold, not on hiding that region.
+
+## Predicted-Query Foldseek Benchmark
+
+The rank_001 8HFW prediction was used as the real Foldseek query against the fixed seven-control database.
+
+| Rank | Control | Role | Foldseek alignment score |
+|---:|---|---|---:|
+| 1 | 8HFW | self positive | 0.9975 |
+| 2 | Q9FVW3 | related positive | 0.8450 |
+| 3 | 6TJ2 | related positive | 0.8393 |
+| 4 | Q6RYA0 | related positive | 0.8167 |
+| 5 | 1XKL | related positive | 0.8091 |
+| 6 | P00520 | remote negative | 0.2493 |
+| 7 | P60174 | length-matched negative | 0.2443 |
+
+Acceptance results:
+
+- Self score `0.9975`, above the predicted-query requirement of `0.75`.
+- Lowest positive `0.8091`, above highest negative `0.2493`.
+- P00520 rejected by the default structural filter.
+- Report identifies `query_mode=predicted` and links back to the prediction manifest.
+
+## Complete Swiss-Prot Search
+
+The same predicted rank_001 queried the complete pinned AlphaFold/Swiss-Prot v6 2025_03 Foldseek database.
+
+| Metric | Observed |
+|---|---:|
+| Database structures | 590,183 |
+| Raw Foldseek hits | 999 |
+| Default-filter candidates | 12 |
+| Valid annotations and sequences | 12 |
+| Run warnings | 0 |
+| Silent errors | 0 |
+| Prediction/run lineage | bidirectional |
+
+The earlier v0.2 experimental-query production result remains preserved; the 12-candidate count above is specifically for the v0.3 predicted query.
+
+## UI Acceptance
+
+The AF Prediction workbench was exercised with Playwright 1.61.0 against system Edge.
+
+| Viewport | Horizontal overflow | Keyboard focus | pLDDT/PAE | py3Dmol pixels | Result |
+|---|---|---|---|---|---|
+| 1440x900 | none | visible | two nonblank charts | nonblank | PASS |
+| 390x844 | none | visible | two nonblank charts | nonblank | PASS |
+
+The interaction covered AF tab navigation, public-query FASTA entry, catalytic mapping preview, completed prediction selection, five-model ranking, pLDDT, PAE, and the confidence-colored 3D structure. Public screenshots contain only the public 8HFW query fixture and no production candidate sequence or machine path.
+
+## Failure-Path Evidence And Fixes
+
+1. ColabFold unified memory exhausted GPU allocation while loading five models. The run failed explicitly and did not fall back to CPU. Disabling unified memory reduced observed allocation to about 5.9 GB and preserved all scientific parameters.
+2. A post-inference shell-variable quoting error prevented parameter-checksum collection. The completed model outputs were not promoted to success. Checksum collection now reads the verified parameter provenance JSON directly, with a shell-free hash fallback.
+3. The public MSA service returned `too many open files`. The workflow detected ColabFold's semantic failure despite exit code zero, retained the upstream error, and failed after three attempts. A later immutable run succeeded and populated the sequence-hash cache.
+4. Streamlit's default accent and deployment chrome did not match the specified workbench design. The fixed theme now uses structure green and hides the deployment menu; screenshots were regenerated and revalidated.
+
+## Reproducibility, Privacy, And Packaging
+
+- Prediction manifests include normalized input hash, MSA cache state, software versions, runtime patch provenance, parameter source and checksums, model records, confidence artifacts, catalytic mapping, events, warnings, errors, and linked run IDs.
+- A cache miss requires explicit per-job consent before the sequence is sent to the public ColabFold MSA service.
+- One public MSA request and one GPU task can run at a time.
+- AlphaFold parameters remain under their bundled CC BY-NC-SA 4.0 license and are excluded from source and public archives.
+- The public archive excludes databases, weights, caches, Obsidian data, real candidate results and sequences, logs, ZIP history, and machine-specific paths.
+
+## Conclusion
+
+All local v0.3 acceptance conditions pass. The result is a reproducible monomer-structure prediction and Bur01-like structure-mining workflow. It does not establish catalytic activity, S/H ratio, tunnel behavior, water-phase esterification, or a formal WASE model without the explicitly missing mechanistic and experimental evidence.

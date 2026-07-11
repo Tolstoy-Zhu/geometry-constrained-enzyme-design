@@ -3,12 +3,21 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 .venv/
 venv/
 env/
+.cache/
+.pytest_cache/
 
 # Large databases
 databases/
+data/ncbi/*.fa
+data/ncbi/*.faa
+data/ncbi/*.fasta
+data/ncbi/predicted_structures/
+data/alphafold/structures/
+data/alphafold/*.tsv
 *.tar.gz
 *.zip
 *.appx
@@ -19,6 +28,16 @@ temp/
 
 # Results
 results/
+models/
+model_weights/
+*.a3m
+*.npz
+
+# Private local knowledge base and machine-specific evidence
+Github-Bur01/
+.obsidian/
+doctor_*.json
+*_local_validation.json
 
 # IDE
 .idea/
