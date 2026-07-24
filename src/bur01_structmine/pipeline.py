@@ -459,7 +459,7 @@ def run_pipeline(
         summary = context.complete(len(raw_df), len(filtered_df), len(annotated_df))
         _write_latest_pointer(run_root, summary)
         _link_parent_prediction(parent_prediction_id, summary.run_id)
-        print("\n[DONE] AquaEsterNet-StructMine v0.3 pipeline finished.")
+        print("\n[DONE] AquaEsterNet-StructMine v0.4 pipeline finished.")
         print(f"Run ID:           {summary.run_id}")
         print(f"Run directory:    {summary.run_dir}")
         print(f"Annotated table:  {annotated_xlsx}")

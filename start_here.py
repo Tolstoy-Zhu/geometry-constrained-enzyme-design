@@ -7,8 +7,8 @@ from bur01_structmine.cli import main as cli_main
 
 
 def _overview() -> int:
-    print("AquaEsterNet-StructMine v0.3")
-    print("Local AlphaFold2 prediction and Bur01-like structure mining with Foldseek, TM-align, and WASE-screen.")
+    print("AquaEsterNet-StructMine v0.4")
+    print("Bur01 structure mining, NR expansion, local AlphaFold2 validation, and WASE-screen.")
     print()
     print("Common actions:")
     print("  python start_here.py --action doctor")
@@ -18,6 +18,10 @@ def _overview() -> int:
     print("  python start_here.py --action validate")
     print("  python start_here.py --action check-files")
     print("  python -m bur01_structmine.cli predict --fasta query.fasta --preset standard --confirm-public-msa")
+    print("  python -m bur01_structmine.cli nr-demo-build --email name@example.org --confirm-ncbi")
+    print("  python -m bur01_structmine.cli nr-expand --source-run <run_id>")
+    print("  python -m bur01_structmine.cli nr-export-job --source-run <run_id>")
+    print("  python -m bur01_structmine.cli nr-import-job --bundle <server_result.zip>")
     return 0
 
 

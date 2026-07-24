@@ -42,7 +42,7 @@ class CachedSession:
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
         self.session.headers.update(
-            {"User-Agent": "AquaEsterNet-StructMine/0.3.0 (research workflow)"}
+            {"User-Agent": "AquaEsterNet-StructMine/0.4.0 (research workflow)"}
         )
 
     def _cache_path(self, url: str, params: dict[str, Any] | None, kind: str) -> Path:

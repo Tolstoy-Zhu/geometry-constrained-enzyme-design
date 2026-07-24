@@ -1,6 +1,6 @@
-# AquaEsterNet-StructMine v0.3
+# AquaEsterNet-StructMine v0.4
 
-**AquaEsterNet-StructMine** is a structure-constrained mining tool for Bur01-like enzymes. It uses [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A as the query, Foldseek for database-scale searches, and TM-align for small local structure sets. Search, filtering, cross-database annotation, WASE-screen triage, and traceable export share one service layer.
+**AquaEsterNet-StructMine** is a joint structure-and-sequence mining tool for Bur01-like enzymes. It uses [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A, Foldseek/TM-align structure evidence, NCBI NR and MMseqs2 sequence expansion, local AlphaFold2 validation, cross-database annotation, transparent WASE-screen triage, and traceable manifests.
 
 This project is not a black-box predictor of esterification selectivity or S/H ratio. It addresses an earlier decision: which Bur01-like proteins are sufficiently supported to justify expression and enzymology experiments.
 
@@ -32,6 +32,11 @@ python start_here.py --action validate
 python start_here.py --action check-files
 python -m bur01_structmine.cli predict --fasta query.fasta --preset standard --confirm-public-msa
 python -m bur01_structmine.cli predict-and-mine --fasta query.fasta --preset standard --confirm-public-msa --mining-config configs/alphafold_swissprot.yaml
+python -m bur01_structmine.cli nr-demo-build --query-fasta data/query/Bur01m_seed.fasta --email name@example.org --confirm-ncbi
+python -m bur01_structmine.cli nr-expand --source-run <run_id> --config configs/nr_local_demo.yaml
+python -m bur01_structmine.cli nr-export-job --source-run <run_id> --config configs/nr_full_server.yaml
+python -m bur01_structmine.cli nr-import-job --bundle <nr_run_id>_server_result.zip
+python -m bur01_structmine.cli nr-novelty --fasta designed.fasta --backend ncbi_remote --email name@example.org --confirm-ncbi
 ```
 
 `target-run` remains as a compatibility alias for the real Foldseek benchmark. It no longer treats P00520 as a positive hit.
@@ -44,16 +49,31 @@ python -m bur01_structmine.cli predict-and-mine --fasta query.fasta --preset sta
 4. Export Excel, TSV, and FASTA files for synthesis, expression, and enzymology planning.
 5. Provide transparent structural evidence for future formal WASE model development.
 
+## NR Sequence Expansion And Novelty Audit
+
+v0.4 follows the public VenusMine MMseqs2 search and clustering steps: two iterations, `max-seqs=2500`, `search-type=1`, and 50% sequence-identity clustering. Foldseek now exports target sequences; seeds and hits are deduplicated by accession and sequence SHA-256. Every representative is directly realigned to 8HFW chain A so Ser111, Asp241, and His274 are mapped independently.
+
+The workstation stores only a real query-derived NCBI remote hit subset, explicitly scoped as `nr_remote_snapshot`. Complete NR runs through a credential-free Bash/Slurm/PBS package on a server or HPC. Normal searches never download NR, and imported results must pass scope, version, path-safety, and SHA-256 checks.
+
+NR sequence evidence and structure evidence are separate. Before AF2 plus Foldseek/TM-align validation, every candidate remains:
+
+```text
+wase_tier = Not evaluated - structure required
+wase_scope = not_evaluated_sequence_only
+```
+
+The **NR Mining** view supports local-subset execution, server export/import, evidence filtering, and handoff to AF2. See [`docs/NR_WORKFLOW_EN.md`](docs/NR_WORKFLOW_EN.md). `configs/ncbi_prostt5.yaml` is retained only as a legacy small-custom-FASTA route and is not complete NR.
+
 ## AlphaFold2 Prediction
 
-v0.3 adds LocalColabFold 1.6.1 and AlphaFold2-PTM to the existing `Ubuntu-Foldseek` WSL2 distribution. The project can now predict a new monomer and use its top-ranked structure as the query for the same mining service used by the CLI and web workbench.
+v0.3 added LocalColabFold 1.6.1 and AlphaFold2-PTM to `Ubuntu-Foldseek`. v0.4 also accepts an NR run ID and accession, creating bidirectional NR → AF2 → Foldseek/TM-align lineage.
 
 ### Input Contract
 
 - Exactly one FASTA record, 20-1000 aa.
 - The canonical 20 amino acids plus at most 5% `X`.
 - An annotated candidate can be selected by run ID and accession.
-- v0.3 is monomer-only; complexes, ligands, nucleic acids, and covalent modifications are out of scope.
+- The current AF2 workflow is monomer-only; complexes, ligands, nucleic acids, and covalent modifications are out of scope.
 
 ### Presets
 
@@ -153,9 +173,10 @@ It reports real qTM, tTM, RMSD, aligned sequences, and residue mappings. Local T
 
 ## Web Workbench
 
-The workbench has six views:
+The workbench has seven views:
 
 - **Run**: query, database, thresholds, preflight checks, run, cancel, progress events, and errors.
+- **NR Mining**: local hit-snapshot execution, complete-NR job export/import, sequence evidence, AF2-ready filtering, and AF2 handoff.
 - **AF Prediction**: FASTA upload/paste or candidate input, privacy confirmation, catalytic mapping, prediction or predict-and-mine, model ranking, pLDDT, PAE, and confidence-colored 3D structure.
 - **Candidates**: filters for source, TM-score, coverage, WASE tier, reviewed state, and evidence coverage.
 - **Structure**: TM-align query-candidate overlay with Ser111/Asp241/His274 and mapped target residues.
@@ -163,6 +184,8 @@ The workbench has six views:
 - **Doctor**: WSL, Foldseek, AVX2, databases, network, storage, Python packages, and output permissions.
 
 Candidates can be exported as Excel, TSV, or FASTA and can be re-annotated from the same service layer.
+
+The NR view also shows a stage-by-stage trace for seed export, iterative MMseqs2 search, deduplication, 50% clustering, catalytic-site mapping, sequence prescreening, and AF2 queue creation. Public v0.4 UI captures are stored under `docs/screenshots/nr_workflow_*.png`; their validation report explicitly marks the data as a sanitized interface fixture rather than a real NCBI result.
 
 ### Persistent local operation
 
@@ -290,7 +313,7 @@ python -m bur01_structmine.cli benchmark --engine foldseek
 
 Tests use isolated temporary directories and do not write to formal `results`. See `VALIDATION_REPORT.md` for current evidence.
 
-Final local acceptance on 2026-07-11:
+Retained v0.3 acceptance on 2026-07-11:
 
 - `43 passed`; doctor reported `31 passed, 0 warnings, 0 failed`.
 - The standard 8HFW prediction produced five models; rank_001 has mean pLDDT `98.07`, pTM `0.950`, and `min(qTM,tTM)=0.9925` against the experimental structure.
@@ -298,6 +321,14 @@ Final local acceptance on 2026-07-11:
 - The predicted-8HFW Foldseek benchmark placed the lowest positive at `0.8091`, above the highest negative at `0.2493`, and rejected P00520.
 - The predicted query searched all 590,183 Swiss-Prot structures and produced 999 raw hits, 12 default-filter candidates, and 12 valid annotations with zero warnings.
 - The AF workbench passed screenshot, horizontal-overflow, keyboard-focus, pLDDT, PAE, and nonblank WebGL checks at `1440x900` and `390x844`.
+
+v0.4 development validation on 2026-07-24:
+
+- `65 passed`; the no-network doctor profile reported `29 passed, 3 expected warnings, 0 failed`.
+- MMseqs2 `18.8cc5c` and NCBI BLAST+ `2.17.0` pass real runtime checks; BLAST+ MD5 and SHA-256 are recorded.
+- The NR UI passed desktop/mobile screenshot, horizontal-overflow, keyboard-focus, fixture-disclosure, and hidden-service-shutdown checks.
+- The real NCBI hit snapshot awaits explicit transfer consent, and complete-NR server acceptance is still pending.
+- The development branch may be pushed, but merge, `v0.4.0` tag, and Release remain blocked.
 
 ## Scientific Boundaries
 
@@ -316,4 +347,6 @@ Final local acceptance on 2026-07-11:
 - `COMPLETION_AUDIT.md`: requirement audit.
 - `CHANGELOG.md`: version history.
 - `THIRD_PARTY_LICENSES.md`: third-party software notices.
+- `docs/NR_WORKFLOW_CN.md` and `docs/NR_WORKFLOW_EN.md`: NR operation and evidence boundary.
+- `docs/V0.4_DEVELOPMENT_NOTES_CN.md` and `docs/V0.4_DEVELOPMENT_NOTES_EN.md`: current development status and open release gates.
 - `docs/RELEASE_NOTES_CN.md` and `docs/RELEASE_NOTES_EN.md`: bilingual v0.3 release notes.

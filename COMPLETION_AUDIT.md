@@ -1,10 +1,39 @@
-# AquaEsterNet-StructMine v0.3 Completion Audit
+# AquaEsterNet-StructMine v0.4 Completion Audit
 
-Audit date: 2026-07-11
+Audit date: 2026-07-24
 
-Local implementation status: **COMPLETE AND PASSING**
+Local implementation status: **IMPLEMENTED AND PASSING**
 
-Publication status: **ready for non-draft PR; merge and Release remain user-controlled checkpoints**
+Publication status: **development branch only; do not merge, tag, or release before complete-NR server acceptance**
+
+## v0.4 NR Integration
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Preserve v0.3 data, databases, Obsidian, and archives | PASS | New code is additive; generated NR paths remain ignored |
+| Do not restore background startup | PASS | No service installation or scheduled-task change |
+| Foldseek target sequences | PASS | `tseq` and `theader` added to formal output |
+| Independent NR contracts | PASS | Expansion, candidate, run, summary, novelty request/manifest models |
+| Two-iteration VenusMine preset | PASS | Fixed in config, command builder, server scripts, and tests |
+| Accession plus sequence-hash deduplication | PASS | Local and server post-processing |
+| 50% clustering and direct 8HFW mapping | PASS | Representative membership and three-site status fields |
+| Transparent sequence-only ranking | PASS | No new PLM composite score |
+| WASE evidence boundary | PASS | Sequence-only candidates cannot receive WASE priority |
+| Real local NR snapshot implementation | PASS | Consent, email, serial polling, retry, cache, batched efetch |
+| Real local NR snapshot execution | PENDING | Awaiting explicit third-party sequence-transfer confirmation |
+| Credential-free server package | PASS | Generic Bash/Slurm/PBS plus checksums and bilingual instructions |
+| Safe server result import | PASS | Path traversal, scope, version, missing file, and SHA-256 validation |
+| Full NR server execution | PENDING | External server/HPC is required |
+| NR novelty audit | PASS | Nearest-neighbor evidence and natural self-hit warning |
+| NR-to-AF2 linkage | PASS | Bidirectional manifests and CLI/web handoff |
+| Seven-view local web workbench | PASS | NR Mining view added; isolated Streamlit tests pass |
+| Automated tests | PASS | 65 isolated tests |
+| MMseqs2 runtime | PASS | 18.8cc5c |
+| NCBI BLAST+ runtime | PASS | 2.17.0, MD5 and SHA-256 recorded |
+| Desktop/mobile NR screenshots | PASS | Five 2x-density captures, overflow/focus checks, fixture disclosure, and verified temporary-service shutdown |
+| Formal v0.4.0 release | BLOCKED | Complete-NR imported acceptance is mandatory |
+
+The remainder of this document retains the prior v0.3 acceptance evidence. It must not be interpreted as satisfying the new complete-NR release gate.
 
 ## Preservation
 
@@ -117,9 +146,9 @@ The immediate expert-demonstration route is operational. A Quick Tunnel is not t
 
 ## GitHub Publication Gate
 
-The audited source tree is intended for branch `agent/af-prediction-v0.3` with commit message `Add local AlphaFold2 prediction workflow` and a ready, non-draft PR titled `Add local AlphaFold2 prediction and AquaEsterNet-StructMine v0.3`.
+The v0.4 source tree is intended for development branch `agent/nr-integration-v0.4`. It may be pushed for review only after preserving the existing user-modified benchmark manifest. It must not target a merge before the current v0.3 PR is merged and the complete-NR external acceptance gate passes.
 
-The PR is not auto-merged. Tag `v0.3.0` and the GitHub Release are created only after the user merges the PR. Release assets must be the sanitized ZIP and its independent SHA-256 file; databases, candidate sequences, model parameters, WSL state, caches, and logs remain excluded.
+No v0.4 tag or GitHub Release is created in this development state. The prior v0.3 branch, PR, tag, and release instructions remain historical evidence. Any future public asset must exclude databases, real NR candidates, model parameters, WSL state, caches, server configuration, credentials, and logs.
 
 ## Scientific Boundary
 

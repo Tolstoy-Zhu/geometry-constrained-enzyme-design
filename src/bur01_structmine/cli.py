@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -12,7 +13,14 @@ from .benchmark import run_fixed_benchmark
 from .config import load_config, project_root
 from .datasources import load_search_databases
 from .doctor import print_doctor, run_doctor
-from .models import PredictionRequest, RunRequest
+from .models import (
+    NrExpansionRequest,
+    NrNoveltyRequest,
+    PredictionRequest,
+    RunRequest,
+)
+from .nr_job_bundle import export_nr_job_bundle, import_nr_job_bundle
+from .nr_pipeline import build_nr_demo_snapshot, run_nr_expansion, run_nr_novelty
 from .pipeline import run_pipeline
 from .prediction import run_prediction, run_prediction_and_mine
 
@@ -30,18 +38,36 @@ REQUIRED_FILES = (
     "ONLINE_DEMO_GUIDE_CN.md",
     "ONLINE_DEMO_GUIDE_EN.md",
     "CHANGELOG.md",
+    "PROJECT_OVERVIEW.md",
+    "PROJECT_MANIFEST.md",
+    "VALIDATION_REPORT.md",
+    "COMPLETION_AUDIT.md",
     "THIRD_PARTY_LICENSES.md",
     "docs/RELEASE_NOTES_CN.md",
     "docs/RELEASE_NOTES_EN.md",
+    "docs/NR_WORKFLOW_CN.md",
+    "docs/NR_WORKFLOW_EN.md",
+    "docs/V0.4_DEVELOPMENT_NOTES_CN.md",
+    "docs/V0.4_DEVELOPMENT_NOTES_EN.md",
     "docs/validation/v0.3_validation_summary.json",
+    "docs/validation/v0.4_development_validation.json",
+    "docs/validation/v0.4_nr_ui_validation.json",
     "docs/validation/persistent_online_ui_validation.json",
     "docs/screenshots/af_prediction_desktop.png",
     "docs/screenshots/af_prediction_mobile.png",
+    "docs/screenshots/nr_workflow_01_workbench.png",
+    "docs/screenshots/nr_workflow_02_processing_trace.png",
+    "docs/screenshots/nr_workflow_03_candidates.png",
+    "docs/screenshots/nr_workflow_04_server_job.png",
+    "docs/screenshots/nr_workflow_05_mobile.png",
     "config.yaml",
     "configs/benchmark_foldseek.yaml",
     "configs/prediction_runtime.lock.yaml",
     "configs/colabfold-pip-lock.txt",
     "configs/cloudflared_runtime.lock.json",
+    "configs/nr_local_demo.yaml",
+    "configs/nr_full_server.yaml",
+    "configs/nr_runtime.lock.yaml",
     ".github/workflows/ci.yml",
     ".streamlit/config.toml",
     "data/query/Bur01m.pdb",
@@ -72,6 +98,10 @@ REQUIRED_FILES = (
     "src/bur01_structmine/prediction_sequence.py",
     "src/bur01_structmine/colabfold_runtime.py",
     "src/bur01_structmine/remote_auth.py",
+    "src/bur01_structmine/mmseqs_runner.py",
+    "src/bur01_structmine/ncbi_blast.py",
+    "src/bur01_structmine/nr_pipeline.py",
+    "src/bur01_structmine/nr_job_bundle.py",
     "scripts/prepare_benchmark.py",
     "scripts/run_benchmark.py",
     "scripts/setup_wsl_foldseek.ps1",
@@ -83,7 +113,10 @@ REQUIRED_FILES = (
     "scripts/install_alphafold_params.sh",
     "scripts/run_af2_acceptance.py",
     "scripts/build_public_release.py",
+    "scripts/nr_server_postprocess.py",
+    "scripts/install_ncbi_blast_wsl.sh",
     "scripts/validate_ui_playwright.py",
+    "scripts/validate_nr_ui_playwright.py",
     "scripts/windows/ui_service.ps1",
     "scripts/windows/remote_ui_service.ps1",
     "tests/fixtures/fake_colabfold.py",
@@ -91,6 +124,11 @@ REQUIRED_FILES = (
     "tests/test_prediction_sequence.py",
     "tests/test_persistent_ui_assets.py",
     "tests/test_remote_auth.py",
+    "tests/fixtures/fake_mmseqs.py",
+    "tests/test_mmseqs_runner.py",
+    "tests/test_ncbi_blast.py",
+    "tests/test_nr_pipeline.py",
+    "tests/test_nr_job_bundle.py",
 )
 
 
@@ -165,7 +203,11 @@ def _add_prediction_arguments(parser: argparse.ArgumentParser) -> None:
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--fasta", help="Path to one 20-1000 aa monomer FASTA")
     source.add_argument("--candidate-run", help="Run ID containing an annotated candidate sequence")
-    parser.add_argument("--accession", help="Candidate accession; required with --candidate-run")
+    source.add_argument("--nr-run", help="NR run ID containing a sequence-screen candidate")
+    parser.add_argument(
+        "--accession",
+        help="Candidate accession; required with --candidate-run or --nr-run",
+    )
     parser.add_argument("--preset", choices=("quick", "standard", "high"), default="standard")
     parser.add_argument("--templates", action="store_true", help="Enable public template search")
     parser.add_argument(
@@ -188,8 +230,8 @@ def _add_prediction_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
-    if args.candidate_run and not args.accession:
-        raise ValueError("--accession is required with --candidate-run")
+    if (args.candidate_run or args.nr_run) and not args.accession:
+        raise ValueError("--accession is required with --candidate-run or --nr-run")
     catalytic_override: dict[str, int] = {}
     for value in args.catalytic_site:
         try:
@@ -200,6 +242,7 @@ def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
     return PredictionRequest(
         fasta_path=args.fasta,
         candidate_run_id=args.candidate_run,
+        candidate_nr_run_id=args.nr_run,
         accession=args.accession,
         preset=args.preset,
         use_templates=args.templates,
@@ -264,6 +307,92 @@ def build_parser() -> argparse.ArgumentParser:
     _add_prediction_arguments(predict_and_mine)
     predict_and_mine.add_argument("--mining-config", default="configs/alphafold_swissprot.yaml")
     predict_and_mine.add_argument("--mining-output-root")
+
+    nr_demo = subparsers.add_parser(
+        "nr-demo-build",
+        help="Build a cached local hit snapshot with one confirmed NCBI remote NR search",
+    )
+    nr_demo.add_argument("--query-fasta", default="data/query/Bur01m_seed.fasta")
+    nr_demo.add_argument("--email")
+    nr_demo.add_argument("--max-hits", type=int, default=2500)
+    nr_demo.add_argument("--evalue", type=float, default=1e-5)
+    nr_demo.add_argument("--output-root", default="databases/nr_demo")
+    nr_demo.add_argument(
+        "--confirm-ncbi",
+        action="store_true",
+        help="Confirm that the query sequence may be sent to NCBI BLAST",
+    )
+
+    nr_expand = subparsers.add_parser(
+        "nr-expand",
+        help="Expand a structure run against a configured local MMseqs2 sequence database",
+    )
+    nr_expand.add_argument("--source-run", required=True)
+    nr_expand.add_argument("--config", default="configs/nr_local_demo.yaml")
+    nr_expand.add_argument("--nr-run-id")
+    nr_expand.add_argument("--database-path")
+    nr_expand.add_argument("--output-root", default="results/nr_runs")
+    nr_expand.add_argument("--structure-run-root", default="results/runs")
+
+    nr_export = subparsers.add_parser(
+        "nr-export-job",
+        help="Export a credential-free complete-NR Bash/Slurm/PBS server job",
+    )
+    nr_export.add_argument("--source-run", required=True)
+    nr_export.add_argument("--config", default="configs/nr_full_server.yaml")
+    nr_export.add_argument("--nr-run-id")
+    nr_export.add_argument("--output-root", default="results/nr_runs")
+    nr_export.add_argument("--structure-run-root", default="results/runs")
+    nr_export.add_argument(
+        "--scheduler",
+        choices=("shell", "slurm", "pbs"),
+        default="shell",
+    )
+
+    nr_import = subparsers.add_parser(
+        "nr-import-job",
+        help="Verify SHA-256 and import a complete-NR server result archive",
+    )
+    nr_import.add_argument("--bundle", required=True)
+    nr_import.add_argument("--output-root", default="results/nr_runs")
+    nr_import.add_argument("--structure-run-root", default="results/runs")
+
+    nr_novelty = subparsers.add_parser(
+        "nr-novelty",
+        help="Audit a predicted or designed sequence against its nearest NR neighbor",
+    )
+    nr_novelty.add_argument("--fasta", required=True)
+    nr_novelty.add_argument(
+        "--backend",
+        choices=("ncbi_remote", "mmseqs"),
+        default="ncbi_remote",
+    )
+    nr_novelty.add_argument("--database-path")
+    nr_novelty.add_argument(
+        "--database-scope",
+        choices=("nr_remote_snapshot", "full_nr", "custom_mmseqs"),
+        default="nr_remote_snapshot",
+    )
+    nr_novelty.add_argument("--email")
+    nr_novelty.add_argument("--max-hits", type=int, default=20)
+    nr_novelty.add_argument("--evalue", type=float, default=1e-5)
+    nr_novelty.add_argument("--output-root", default="results/nr_novelty")
+    nr_novelty.add_argument(
+        "--runtime-backend",
+        choices=("auto", "native", "wsl"),
+        default="auto",
+    )
+    nr_novelty.add_argument("--mmseqs-executable", default="mmseqs")
+    nr_novelty.add_argument("--wsl-distribution", default="Ubuntu-Foldseek")
+    nr_novelty.add_argument(
+        "--wsl-executable",
+        default="/opt/colabfold/env/bin/mmseqs",
+    )
+    nr_novelty.add_argument(
+        "--confirm-ncbi",
+        action="store_true",
+        help="Confirm that the query sequence may be sent to NCBI BLAST",
+    )
 
     ui = subparsers.add_parser("ui", help="Start the bilingual local web workbench")
     ui.add_argument("--port", type=int)
@@ -362,6 +491,76 @@ def main(argv: list[str] | None = None) -> int:
                 ensure_ascii=False,
             )
         )
+        return 0
+    if args.command == "nr-demo-build":
+        manifest_path = build_nr_demo_snapshot(
+            args.query_fasta,
+            contact_email=args.email or os.environ.get("AQUA_NCBI_EMAIL", ""),
+            confirm_ncbi=args.confirm_ncbi,
+            max_hits=args.max_hits,
+            evalue=args.evalue,
+            output_root=args.output_root,
+            api_key=os.environ.get("NCBI_API_KEY", ""),
+        )
+        print(f"NR demo snapshot manifest: {manifest_path}")
+        return 0
+    if args.command == "nr-expand":
+        summary = run_nr_expansion(
+            NrExpansionRequest(
+                source_run_id=args.source_run,
+                config_path=args.config,
+                nr_run_id=args.nr_run_id,
+                output_root=args.output_root,
+                structure_run_root=args.structure_run_root,
+                database_path=args.database_path,
+                execution_mode="local",
+            )
+        )
+        print(summary.model_dump_json(indent=2))
+        return 0
+    if args.command == "nr-export-job":
+        summary = export_nr_job_bundle(
+            NrExpansionRequest(
+                source_run_id=args.source_run,
+                config_path=args.config,
+                nr_run_id=args.nr_run_id,
+                output_root=args.output_root,
+                structure_run_root=args.structure_run_root,
+                database_scope="full_nr",
+                execution_mode="job_bundle",
+                scheduler=args.scheduler,
+            )
+        )
+        print(summary.model_dump_json(indent=2))
+        return 0
+    if args.command == "nr-import-job":
+        summary = import_nr_job_bundle(
+            args.bundle,
+            output_root=args.output_root,
+            structure_run_root=args.structure_run_root,
+        )
+        print(summary.model_dump_json(indent=2))
+        return 0
+    if args.command == "nr-novelty":
+        manifest, manifest_path = run_nr_novelty(
+            NrNoveltyRequest(
+                fasta_path=args.fasta,
+                output_root=args.output_root,
+                backend=args.backend,
+                database_path=args.database_path,
+                database_scope=args.database_scope,
+                max_hits=args.max_hits,
+                evalue=args.evalue,
+                confirm_ncbi=args.confirm_ncbi,
+                contact_email=args.email or os.environ.get("AQUA_NCBI_EMAIL", ""),
+                runtime_backend=args.runtime_backend,
+                mmseqs_executable=args.mmseqs_executable,
+                wsl_distribution=args.wsl_distribution,
+                wsl_executable=args.wsl_executable,
+            )
+        )
+        print(manifest.model_dump_json(indent=2))
+        print(f"NR novelty manifest: {manifest_path}")
         return 0
     if args.command == "ui":
         return launch_ui(args.port, args.no_browser)

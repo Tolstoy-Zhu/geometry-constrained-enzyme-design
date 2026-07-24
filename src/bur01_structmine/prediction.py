@@ -27,6 +27,7 @@ from .models import (
     PredictionRequest,
     PredictionSummary,
     ProgressEvent,
+    NrRunManifest,
     RunManifest,
     RunSummary,
 )
@@ -70,6 +71,7 @@ class PredictionContext:
             sequence_sha256=record.sha256,
             source_type=source.get("source_type", "fasta"),
             source_run_id=source.get("source_run_id", ""),
+            source_nr_run_id=source.get("source_nr_run_id", ""),
             source_accession=source.get("source_accession", ""),
             preset=request.preset,
             parameters=parameters.to_dict(),
@@ -142,6 +144,48 @@ class PredictionContext:
 
 
 def _candidate_record(request: PredictionRequest) -> tuple[FastaRecord, dict[str, str]]:
+    if request.candidate_nr_run_id:
+        run_root = resolve_path(request.candidate_nr_run_root)
+        manifest_path = (
+            run_root / str(request.candidate_nr_run_id) / "nr_run_manifest.json"
+        )
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"NR run manifest not found: {manifest_path}")
+        manifest = NrRunManifest.model_validate_json(
+            manifest_path.read_text(encoding="utf-8")
+        )
+        candidates_path = Path(manifest.artifacts.get("candidates_tsv", ""))
+        if not candidates_path.is_file():
+            raise FileNotFoundError(f"NR candidate table not found: {candidates_path}")
+        candidates = pd.read_csv(candidates_path, sep="\t")
+        accession = str(request.accession).strip().upper()
+        identifier_columns = [
+            column
+            for column in ("target_accession", "target", "sequence_id")
+            if column in candidates.columns
+        ]
+        matches = pd.Series(False, index=candidates.index)
+        for column in identifier_columns:
+            values = candidates[column].fillna("").astype(str).str.upper()
+            matches |= values.eq(accession)
+            if column == "target":
+                matches |= values.str.contains(accession, regex=False)
+        selected = candidates[matches]
+        if selected.empty:
+            raise ValueError(
+                f"Accession {accession} was not found in NR run "
+                f"{request.candidate_nr_run_id}"
+            )
+        record = validate_sequence(
+            accession,
+            str(selected.iloc[0].get("target_sequence", "")),
+        )
+        return record, {
+            "source_type": "nr_candidate",
+            "source_nr_run_id": str(request.candidate_nr_run_id),
+            "source_accession": accession,
+        }
+
     run_root = resolve_path(request.candidate_run_root)
     manifest_path = run_root / str(request.candidate_run_id) / "run_manifest.json"
     if not manifest_path.is_file():
@@ -412,6 +456,13 @@ def run_prediction(request: PredictionRequest) -> PredictionSummary:
         context.add_artifact("plddt", plddt_path)
         context.add_artifact("pae", pae_path)
         context.emit("quality", "completed", "Ranking, confidence, PAE, and catalytic mapping parsed", 0.96)
+        if context.manifest.source_nr_run_id:
+            _append_nr_child_prediction(
+                resolve_path(request.candidate_nr_run_root)
+                / context.manifest.source_nr_run_id
+                / "nr_run_manifest.json",
+                context.prediction_id,
+            )
         return context.complete()
     except BaseException as exc:
         context.fail(exc)
@@ -432,6 +483,19 @@ def _append_prediction_child_run(prediction_manifest_path: Path, run_id: str) ->
     tmp = prediction_manifest_path.with_suffix(".json.tmp")
     tmp.write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
     tmp.replace(prediction_manifest_path)
+
+
+def _append_nr_child_prediction(nr_manifest_path: Path, prediction_id: str) -> None:
+    if not nr_manifest_path.is_file():
+        raise FileNotFoundError(f"NR provenance manifest not found: {nr_manifest_path}")
+    manifest = NrRunManifest.model_validate_json(
+        nr_manifest_path.read_text(encoding="utf-8")
+    )
+    if prediction_id not in manifest.child_prediction_ids:
+        manifest.child_prediction_ids.append(prediction_id)
+    tmp = nr_manifest_path.with_suffix(".json.tmp")
+    tmp.write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
+    tmp.replace(nr_manifest_path)
 
 
 def run_prediction_and_mine(

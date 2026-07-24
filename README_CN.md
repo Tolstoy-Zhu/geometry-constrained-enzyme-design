@@ -1,6 +1,6 @@
-# AquaEsterNet-StructMine v0.3 中文说明
+# AquaEsterNet-StructMine v0.4 中文说明
 
-**AquaEsterNet-StructMine** 是一个面向 Bur01-like 酶的结构约束挖掘工具。它以 [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A 为查询结构，用 Foldseek 搜索大规模结构库，用 TM-align 处理小型本地结构集合，再统一完成过滤、跨库注释、WASE-screen 预筛分和可追溯导出。
+**AquaEsterNet-StructMine** 是一个面向 Bur01-like 酶的结构与序列联合挖掘工具。它以 [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A 为查询结构，用 Foldseek/TM-align 发现结构候选，用 NCBI NR 和 MMseqs2 扩增天然序列空间，再通过本地 AlphaFold2、结构复核、跨库注释、WASE-screen 和可追溯清单形成分层证据链。
 
 本项目不是一个直接预测酯化选择性或 S/H ratio 的黑箱模型。它解决的是更前置的问题：从结构库中找出值得进行表达、酶学和底物验证的 Bur01-like 候选。
 
@@ -45,6 +45,21 @@ python -m bur01_structmine.cli predict --fasta query.fasta --preset standard --c
 
 # 预测 rank_001 后直接作为完整 Swiss-Prot 挖掘查询
 python -m bur01_structmine.cli predict-and-mine --fasta query.fasta --preset standard --confirm-public-msa --mining-config configs/alphafold_swissprot.yaml
+
+# 真实 NCBI NR 命中子集；需要联系邮箱和本次明确确认
+python -m bur01_structmine.cli nr-demo-build --query-fasta data/query/Bur01m_seed.fasta --email name@example.org --confirm-ncbi
+
+# 从一次结构运行扩增 NR 序列
+python -m bur01_structmine.cli nr-expand --source-run <run_id> --config configs/nr_local_demo.yaml
+
+# 导出完整 NR 服务器/HPC 作业包
+python -m bur01_structmine.cli nr-export-job --source-run <run_id> --config configs/nr_full_server.yaml
+
+# 导回并逐文件校验完整 NR 结果
+python -m bur01_structmine.cli nr-import-job --bundle <nr_run_id>_server_result.zip
+
+# NR 最近邻新颖性审计
+python -m bur01_structmine.cli nr-novelty --fasta designed.fasta --backend ncbi_remote --email name@example.org --confirm-ncbi
 ```
 
 `target-run` 仍保留兼容，但现在与 `benchmark` 相同，运行真实 Foldseek 固定基准，不再把 P00520 当作阳性结果。
@@ -57,16 +72,31 @@ python -m bur01_structmine.cli predict-and-mine --fasta query.fasta --preset sta
 4. 输出可用于后续基因合成、表达纯化和酶学实验的 Excel、TSV 和 FASTA 文件。
 5. 为未来正式 WASE 模型准备透明、可审计的结构和证据字段。
 
+## NR 序列扩增与新颖性审计
+
+v0.4 参考 VenusMine 的公开 MMseqs2 搜索与聚类步骤，固定采用两轮迭代、`max-seqs=2500`、`search-type=1` 和 50% 序列一致性聚类。Foldseek 结果现在保存目标序列；种子按 accession 和序列 SHA-256 去重，聚类代表序列再直接对齐 8HFW chain A，分别映射 Ser111、Asp241 和 His274。
+
+本机只保存一次真实 NCBI 远程 `nr` 搜索产生的命中子集，并明确标记为 `nr_remote_snapshot`。完整 NR 通过无凭据 Bash/Slurm/PBS 作业包在服务器或 HPC 运行，普通搜索不会自动下载 NR。导回结果必须通过范围、版本、路径安全和 SHA-256 校验。
+
+NR 序列证据与结构证据严格分开。任何尚未完成 AF2 和 Foldseek/TM-align 复核的候选均显示：
+
+```text
+wase_tier = Not evaluated - structure required
+wase_scope = not_evaluated_sequence_only
+```
+
+“NR挖掘”网页视图支持本机子集、服务器作业导出/导入、证据筛选和送入 AF2 复核。详细说明见 [`docs/NR_WORKFLOW_CN.md`](docs/NR_WORKFLOW_CN.md)。`configs/ncbi_prostt5.yaml` 仅保留为小型自定义 FASTA 的 legacy 入口，不代表完整 NR。
+
 ## AlphaFold2 预测功能
 
-v0.3 在现有 `Ubuntu-Foldseek` WSL2 中加入 LocalColabFold 1.6.1 和 AlphaFold2-PTM。本项目现在既能搜索已有结构，也能先把新蛋白序列预测成结构，再用预测结果进行结构挖掘。
+v0.3 起在现有 `Ubuntu-Foldseek` WSL2 中加入 LocalColabFold 1.6.1 和 AlphaFold2-PTM；v0.4 进一步允许从 NR 运行和 accession 直接选择代表序列，形成 NR → AF2 → Foldseek/TM-align 的双向可追溯谱系。
 
 ### 支持的输入
 
 - 单条 FASTA，长度 20-1000 aa。
 - 只允许 20 种标准氨基酸和 `X`；`X` 不得超过 5%。
 - 可直接选择某次挖掘运行中的已有候选 accession。
-- v0.3 只支持单体蛋白，不支持复合物、配体、核酸或共价修饰。
+- 当前 AF2 功能只支持单体蛋白，不支持复合物、配体、核酸或共价修饰。
 
 ### 标准参数
 
@@ -181,9 +211,10 @@ python -m bur01_structmine.cli benchmark --engine tmtools
 
 ## 网页工作台
 
-网页包含六个视图：
+网页包含七个视图：
 
 - **运行**：查询、数据库、阈值、预检、运行、取消、实时事件和错误。
+- **NR挖掘**：本机真实命中子集、完整 NR 作业导出/导入、序列证据筛选和送入 AF2 复核。
 - **AF预测**：粘贴/上传 FASTA 或选择候选，检查隐私确认与催化位点映射，运行预测或预测并挖掘，查看模型排名、pLDDT、PAE 和三维结构。
 - **候选**：按来源、TM-score、覆盖度、WASE 层级、reviewed 状态和证据完整度筛选。
 - **结构**：显示查询与候选的 TM-align 叠合，并突出 Ser111/Asp241/His274 及其映射残基。
@@ -336,7 +367,7 @@ python -m bur01_structmine.cli benchmark --engine foldseek
 
 测试使用独立临时目录，不写入正式 `results`。当前验证证据见 `VALIDATION_REPORT.md`。
 
-本机最终验收（2026-07-11）：
+保留的 v0.3 本机验收（2026-07-11）：
 
 - `43 passed`；`doctor` 为 `31 passed, 0 warnings, 0 failed`。
 - 8HFW 标准预测：5 个模型，rank_001 平均 pLDDT `98.07`、pTM `0.950`，相对实验结构 `min(qTM,tTM)=0.9925`。
@@ -344,6 +375,14 @@ python -m bur01_structmine.cli benchmark --engine foldseek
 - 预测 8HFW 固定 Foldseek 基准：最低阳性 `0.8091` 高于最高阴性 `0.2493`，P00520 被拒绝。
 - 预测 8HFW 搜索完整 590,183 结构 Swiss-Prot 库：999 个原始命中、12 个默认阈值候选、12 个有效注释，零警告。
 - 网页在 `1440x900` 和 `390x844` 下通过截图、横向溢出、键盘焦点、PAE、pLDDT 和 WebGL 非空检查。
+
+v0.4 开发验证（2026-07-24）：
+
+- `65 passed`；无网络 doctor 配置为 `29 passed, 3 expected warnings, 0 failed`。
+- MMseqs2 `18.8cc5c` 和 NCBI BLAST+ `2.17.0` 通过真实运行时检查，BLAST+ MD5 与 SHA-256 已记录。
+- NR 网页已通过桌面端/移动端截图、横向溢出、键盘焦点、验证数据标识和隐藏临时服务关闭检查；截图位于 `docs/screenshots/nr_workflow_*.png`。
+- 真实 NCBI 命中子集等待逐次传输确认，完整 NR 服务器验收仍待执行。
+- 开发分支可以推送，但不得合并、创建 `v0.4.0` 标签或 Release。
 
 ## 科学边界
 
@@ -360,7 +399,9 @@ python -m bur01_structmine.cli benchmark --engine foldseek
 - `PROJECT_OVERVIEW.md`：项目结构和入口概览。
 - `PROJECT_MANIFEST.md`：完整文件清单。
 - `VALIDATION_REPORT.md`：验证结果。
-- `COMPLETION_AUDIT.md`：v0.3 计划完成审计。
+- `COMPLETION_AUDIT.md`：v0.4 完成状态与外部验收门槛。
 - `CHANGELOG.md`：版本变更。
 - `THIRD_PARTY_LICENSES.md`：第三方软件和许可证。
+- `docs/NR_WORKFLOW_CN.md` / `docs/NR_WORKFLOW_EN.md`：NR 操作与证据边界。
+- `docs/V0.4_DEVELOPMENT_NOTES_CN.md` / `docs/V0.4_DEVELOPMENT_NOTES_EN.md`：v0.4 当前开发状态。
 - `docs/RELEASE_NOTES_CN.md` / `docs/RELEASE_NOTES_EN.md`：v0.3 双语发布说明。

@@ -9,8 +9,27 @@ AquaEsterNet-StructMine is not a single neural network. It is a reproducible str
 The names have distinct scopes:
 
 - **AquaEsterNet**: the broader framework for water-phase ester mechanism and candidate discovery.
-- **StructMine**: the module for structure search, chain-level alignment, annotation, triage, and export.
+- **StructMine**: the module for structure search, NR sequence expansion, chain-level alignment, annotation, triage, and export.
 - **WASE-screen**: the current transparent screen, not the future formal WASE model.
+
+### v0.4 Layering Principle
+
+v0.4 adds an NCBI NR sequence layer without treating sequence similarity as structural similarity:
+
+```text
+8HFW / structure-supported candidates
+  -> Foldseek target-sequence seeds
+  -> two-iteration NCBI NR + MMseqs2 search
+  -> accession and sequence-SHA-256 deduplication
+  -> 50% identity clustering
+  -> direct 8HFW alignment and Ser111/Asp241/His274 mapping
+  -> AF2-ready queue
+  -> AlphaFold2-PTM
+  -> Foldseek/TM-align structural validation
+  -> WASE-screen
+```
+
+The NR stage does not calculate WASE. E-value, bits, identity, coverage, length, GXSXG-like motif, and catalytic identities remain independent transparent fields rather than an unvalidated PLM composite score. See `docs/NR_WORKFLOW_EN.md` for runtime and server-import details.
 
 ## 2. Inputs And Outputs
 
@@ -25,7 +44,7 @@ Length: 283 aa
 Catalytic triad: Ser111 / Asp241 / His274
 ```
 
-Search targets can be Foldseek databases, small PDB/mmCIF folders, custom predicted-structure databases, or sequence sets represented through ProstT5.
+Search targets can be Foldseek databases, small PDB/mmCIF folders, custom predicted-structure databases, legacy small sequence sets represented through ProstT5, a real local NCBI NR hit snapshot, or an imported complete-NR server result.
 
 ### Output
 

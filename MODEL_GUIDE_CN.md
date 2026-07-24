@@ -9,8 +9,27 @@ AquaEsterNet-StructMine 不是单一神经网络，而是一套可复现的结�
 项目中的三个名称各有边界：
 
 - **AquaEsterNet**：面向水相酯形成机制和候选发现的整体框架。
-- **StructMine**：负责结构搜索、链级对齐、注释、预筛分和导出的模块。
+- **StructMine**：负责结构搜索、NR 序列扩增、链级对齐、注释、预筛分和导出的模块。
 - **WASE-screen**：当前透明预筛分，不是未来正式 WASE 模型。
+
+### v0.4 的分层原则
+
+v0.4 增加 NCBI NR 序列层，但不把序列相似性伪装成结构相似性。完整流程是：
+
+```text
+8HFW / 结构候选
+  -> Foldseek 目标序列种子
+  -> NCBI NR + MMseqs2 两轮搜索
+  -> accession 与序列 SHA-256 去重
+  -> 50% identity 聚类
+  -> 8HFW 直接序列对齐与 Ser111/Asp241/His274 映射
+  -> AF2-ready 队列
+  -> AlphaFold2-PTM
+  -> Foldseek/TM-align 结构复核
+  -> WASE-screen
+```
+
+NR 阶段不计算 WASE 分数。E-value、bits、identity、覆盖度、长度、GXSXG-like 模体和催化三联体身份均作为独立字段输出，不合并成未经验证的黑箱 PLM 分数。详细运行和服务器导入说明见 `docs/NR_WORKFLOW_CN.md`。
 
 ## 2. 输入和输出
 
@@ -30,7 +49,8 @@ AquaEsterNet-StructMine 不是单一神经网络，而是一套可复现的结�
 - Foldseek 数据库，例如 AlphaFold/Swiss-Prot 或 PDB。
 - 本地 PDB/mmCIF 小集合。
 - 由预测结构构建的自定义数据库。
-- 通过 ProstT5 转换的序列集合。
+- 通过 ProstT5 转换的小型 legacy 序列集合。
+- 本机 NCBI NR 真实命中子集或服务器完整 NR 作业结果。
 
 ### 输出
 

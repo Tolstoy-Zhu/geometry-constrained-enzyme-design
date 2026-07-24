@@ -1,0 +1,32 @@
+database:
+  scope: full_nr
+  name: NCBI NR full database
+  path: ""
+  manifest: ""
+
+runtime:
+  backend: native
+  executable: mmseqs
+  wsl_distribution: ""
+  wsl_executable: ""
+
+search:
+  paper_preset: hong2025
+  iterations: 2
+  max_seqs: 2500
+  search_type: 1
+  evalue: 1.0e-5
+  threads: 64
+  cluster_min_sequence_identity: 0.50
+
+filter:
+  max_evalue: 1.0e-5
+  min_qcov: 0.60
+  min_tcov: 0.40
+  min_length: 180
+  max_length: 500
+  max_x_fraction: 0.05
+  required_catalytic_identities: 3
+
+output:
+  run_root: results/nr_runs

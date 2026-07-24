@@ -78,7 +78,7 @@ def parse_single_fasta(text: str) -> FastaRecord:
         errors.append("FASTA header is empty")
     sequence_lines = [line for line in lines[1:] if not line.startswith(">")]
     if any(line.startswith(">") for line in lines[1:]):
-        errors.append("multiple FASTA records are not supported in v0.3")
+        errors.append("multiple FASTA records are not supported in the monomer workflow")
     if errors:
         raise SequenceValidationError(list(dict.fromkeys(errors)))
     return validate_sequence(header.split()[0], "".join(sequence_lines))

@@ -7,6 +7,7 @@ import yaml
 from pydantic import ValidationError
 
 from bur01_structmine.config import load_config, project_root
+from bur01_structmine.nr_pipeline import load_nr_config
 from bur01_structmine.results_parser import filter_hits, parse_pdb_chain, parse_uniprot_accession
 
 
@@ -17,14 +18,19 @@ def test_all_shipped_configs_validate() -> None:
         *sorted(path for path in (root / "configs").glob("*.yaml") if not path.name.endswith(".lock.yaml")),
     ]
     for path in paths:
-        cfg = load_config(path)
-        assert cfg["query"]["chain"] == "A"
-        assert cfg["output"]["run_root"] == "results/runs"
+        if path.name.startswith("nr_"):
+            _, cfg = load_nr_config(path)
+            assert cfg["database"]["scope"]
+            assert cfg["output"]["run_root"] == "results/nr_runs"
+        else:
+            cfg = load_config(path)
+            assert cfg["query"]["chain"] == "A"
+            assert cfg["output"]["run_root"] == "results/runs"
 
 
 def test_prediction_runtime_lock_is_pinned() -> None:
     lock = yaml.safe_load((project_root() / "configs" / "prediction_runtime.lock.yaml").read_text(encoding="utf-8"))
-    assert lock["project_version"] == "0.3.0"
+    assert lock["project_version"] == "0.4.0"
     assert lock["packages"]["colabfold"] == "1.6.1"
     assert lock["packages"]["jax"] == "0.5.3"
     assert lock["packages"]["openmm"] == "8.5.2"

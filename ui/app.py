@@ -42,8 +42,11 @@ RUN_ROOT = Path(os.environ.get("AQUA_RUN_ROOT", ROOT / "results" / "runs"))
 UI_CONFIG_ROOT = ROOT / "results" / "ui_configs"
 UI_STRUCTURE_CACHE = ROOT / ".cache" / "ui_structures"
 PREDICTION_ROOT = Path(os.environ.get("AQUA_PREDICTION_ROOT", ROOT / "results" / "predictions"))
+NR_RUN_ROOT = Path(os.environ.get("AQUA_NR_RUN_ROOT", ROOT / "results" / "nr_runs"))
 UI_PREDICTION_INPUTS = ROOT / "results" / "ui_prediction_inputs"
+UI_NR_INPUTS = ROOT / "results" / "ui_nr_inputs"
 REMOTE_ACCESS_PATH = Path(os.environ.get("AQUA_REMOTE_ACCESS_PATH", ROOT / ".cache" / "remote_ui" / "access.json"))
+FRAGMENT_RUN_EVERY = None if os.environ.get("AQUA_TEST_MODE") == "1" else 2
 
 COLORS = {
     "background": "#F7F9F8",
@@ -373,6 +376,76 @@ TEXT["en"].update(
         "online_mode": "HTTPS expert demo · password protected",
     }
 )
+TEXT["zh"].update(
+    {
+        "nr_tab": "NR挖掘",
+        "nr_workbench": "NCBI NR 序列扩增",
+        "nr_scope": "数据库范围",
+        "nr_local_scope": "本机真实命中子集",
+        "nr_full_scope": "完整 NR 服务器作业",
+        "nr_source_run": "结构种子运行",
+        "nr_run_history": "NR 运行记录",
+        "nr_build_snapshot": "构建本机 NR 子集",
+        "nr_expand_local": "运行本机子集",
+        "nr_export_job": "导出服务器作业",
+        "nr_import_job": "导入服务器结果",
+        "nr_contact_email": "NCBI 联系邮箱",
+        "nr_consent": "我确认本次会将 Bur01 序列发送至 NCBI BLAST 公共服务",
+        "nr_snapshot_missing": "尚未安装本机 NR 命中子集。先填写邮箱并逐次确认。",
+        "nr_server_note": "完整 NR 仅在服务器/HPC 上运行；导回且通过校验前不会发布 v0.4.0。",
+        "nr_sequence_evidence": "序列预筛证据",
+        "nr_wase_notice": "未经 AF2/Foldseek/TM-align 复核，WASE-screen 保持未评估。",
+        "nr_af2_ready": "AF2-ready",
+        "nr_representatives": "代表序列",
+        "nr_send_af2": "送入 AF2 复核",
+        "nr_candidate_input": "NR 候选",
+        "nr_result_zip": "服务器结果 ZIP",
+        "nr_min_qcov": "最低查询覆盖度",
+        "nr_triad": "催化三联体",
+        "nr_accession": "NR accession",
+        "nr_process": "NR 后台任务",
+        "nr_no_runs": "尚无 NR 运行记录。",
+        "nr_snapshot": "本机快照",
+        "nr_integrity": "可追溯性",
+        "nr_not_structural": "仅序列证据",
+        "nr_pipeline_trace": "NR 处理轨迹",
+    }
+)
+TEXT["en"].update(
+    {
+        "nr_tab": "NR Mining",
+        "nr_workbench": "NCBI NR sequence expansion",
+        "nr_scope": "Database scope",
+        "nr_local_scope": "Real local hit subset",
+        "nr_full_scope": "Complete-NR server job",
+        "nr_source_run": "Structure seed run",
+        "nr_run_history": "NR run history",
+        "nr_build_snapshot": "Build local NR subset",
+        "nr_expand_local": "Run local subset",
+        "nr_export_job": "Export server job",
+        "nr_import_job": "Import server result",
+        "nr_contact_email": "NCBI contact email",
+        "nr_consent": "I confirm that the Bur01 sequence may be sent to the public NCBI BLAST service for this request",
+        "nr_snapshot_missing": "No local NR hit subset is installed. Enter an email and confirm each transfer first.",
+        "nr_server_note": "Complete NR runs only on a server/HPC; v0.4.0 is not released before verified import.",
+        "nr_sequence_evidence": "Sequence-screen evidence",
+        "nr_wase_notice": "WASE-screen remains unevaluated until AF2/Foldseek/TM-align validation.",
+        "nr_af2_ready": "AF2-ready",
+        "nr_representatives": "Representatives",
+        "nr_send_af2": "Send to AF2 validation",
+        "nr_candidate_input": "NR candidate",
+        "nr_result_zip": "Server result ZIP",
+        "nr_min_qcov": "Minimum query coverage",
+        "nr_triad": "Catalytic triad",
+        "nr_accession": "NR accession",
+        "nr_process": "NR background task",
+        "nr_no_runs": "No NR run is available yet.",
+        "nr_snapshot": "Local snapshot",
+        "nr_integrity": "Traceability",
+        "nr_not_structural": "Sequence evidence only",
+        "nr_pipeline_trace": "NR processing trace",
+    }
+)
 
 
 st.set_page_config(page_title="AquaEsterNet-StructMine", layout="wide")
@@ -503,6 +576,51 @@ def scan_predictions() -> list[dict[str, Any]]:
     return sorted(predictions, key=lambda item: item.get("created_at", ""), reverse=True)
 
 
+def scan_nr_runs() -> list[dict[str, Any]]:
+    nr_runs: list[dict[str, Any]] = []
+    if not NR_RUN_ROOT.exists():
+        return nr_runs
+    for manifest_path in NR_RUN_ROOT.glob("*/nr_run_manifest.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        manifest["_manifest_path"] = str(manifest_path)
+        manifest["_nr_run_dir"] = str(manifest_path.parent)
+        nr_runs.append(manifest)
+    return sorted(nr_runs, key=lambda item: item.get("created_at", ""), reverse=True)
+
+
+def read_nr_candidates(manifest: dict[str, Any] | None) -> pd.DataFrame:
+    if not manifest:
+        return pd.DataFrame()
+    path_text = _clean_value(manifest.get("artifacts", {}).get("candidates_tsv", ""))
+    path = Path(path_text) if path_text else Path("__missing_nr_candidates__")
+    if not path.is_file():
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path, sep="\t")
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
+        return pd.DataFrame()
+
+
+def read_nr_events(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not manifest:
+        return []
+    run_dir_text = _clean_value(manifest.get("_nr_run_dir", ""))
+    run_dir = Path(run_dir_text) if run_dir_text else None
+    path = run_dir / "events.jsonl" if run_dir else None
+    if path is None or not path.is_file():
+        return []
+    events: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return events
+
+
 def read_prediction_events(prediction_id: str | None) -> list[dict[str, Any]]:
     if not prediction_id:
         return []
@@ -553,6 +671,31 @@ def cached_doctor(config_path: str, modified: float, network: bool) -> dict[str,
 
 
 def doctor_for(config_path: str, network: bool = False) -> dict[str, Any]:
+    if os.environ.get("AQUA_TEST_MODE") == "1":
+        checks = [
+            {
+                "name": name,
+                "category": category,
+                "status": "pass",
+                "message": "isolated UI test",
+                "details": {},
+            }
+            for name, category in (
+                ("configuration", "project"),
+                ("wsl_gpu", "prediction"),
+                ("colabfold", "prediction"),
+                ("jax_cuda", "prediction"),
+                ("mmseqs2", "nr"),
+                ("nr_demo_snapshot", "nr"),
+            )
+        ]
+        return {
+            "project_version": "0.4.0",
+            "platform": "isolated-test",
+            "passed": True,
+            "summary": {"pass": len(checks), "warn": 0, "fail": 0},
+            "checks": checks,
+        }
     path = ROOT / config_path
     return cached_doctor(config_path, path.stat().st_mtime, network)
 
@@ -657,6 +800,7 @@ def start_prediction_process(
     catalytic_sites: dict[str, int],
     fasta_path: Path | None = None,
     candidate_run_id: str | None = None,
+    candidate_nr_run_id: str | None = None,
     accession: str | None = None,
     mine_after: bool = False,
 ) -> None:
@@ -672,6 +816,8 @@ def start_prediction_process(
     ]
     if fasta_path is not None:
         command.extend(["--fasta", str(fasta_path)])
+    elif candidate_nr_run_id is not None:
+        command.extend(["--nr-run", str(candidate_nr_run_id), "--accession", str(accession)])
     else:
         command.extend(["--candidate-run", str(candidate_run_id), "--accession", str(accession)])
     command.extend(
@@ -748,7 +894,87 @@ def cancel_prediction_process() -> None:
         handle.close()
 
 
-@st.fragment(run_every=2)
+def start_nr_process(task_id: str, command: list[str]) -> None:
+    log_root = ROOT / "results" / "ui_process_logs"
+    log_root.mkdir(parents=True, exist_ok=True)
+    log_path = log_root / f"{task_id}.log"
+    log_handle = log_path.open("w", encoding="utf-8")
+    creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+    process = subprocess.Popen(
+        [sys.executable, "-m", "bur01_structmine.cli", *command],
+        cwd=ROOT,
+        stdout=log_handle,
+        stderr=subprocess.STDOUT,
+        creationflags=creationflags,
+    )
+    st.session_state.nr_process = process
+    st.session_state.nr_log_handle = log_handle
+    st.session_state.nr_process_log = str(log_path)
+    st.session_state.nr_task_id = task_id
+
+
+def nr_process_state() -> tuple[str, int | None]:
+    process = st.session_state.get("nr_process")
+    if process is None:
+        return "idle", None
+    code = process.poll()
+    if code is None:
+        return "running", None
+    handle = st.session_state.get("nr_log_handle")
+    if handle and not handle.closed:
+        handle.close()
+    return ("completed" if code == 0 else "failed"), code
+
+
+def cancel_nr_process() -> None:
+    process = st.session_state.get("nr_process")
+    if process is None or process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill.exe", "/PID", str(process.pid), "/T", "/F"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            check=False,
+        )
+    else:
+        process.terminate()
+    try:
+        process.wait(timeout=8)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    handle = st.session_state.get("nr_log_handle")
+    if handle and not handle.closed:
+        handle.close()
+
+
+@st.fragment(run_every=FRAGMENT_RUN_EVERY)
+def render_nr_progress_fragment() -> None:
+    nr_state, nr_exit_code = nr_process_state()
+    if nr_state == "idle":
+        return
+    color = COLORS["amber"] if nr_state == "running" else (
+        COLORS["green"] if nr_state == "completed" else COLORS["red"]
+    )
+    st.markdown(
+        (
+            '<div class="status-line">'
+            f'<span class="status-dot" style="background:{color}"></span>'
+            f'<strong>{tx("nr_process")}</strong><span>{tx(nr_state)}</span>'
+            f'<span>exit={nr_exit_code if nr_exit_code is not None else "..."}</span>'
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+    log_path_text = st.session_state.get("nr_process_log", "")
+    log_path = Path(log_path_text) if log_path_text else None
+    if log_path and log_path.is_file():
+        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        st.code("\n".join(lines[-18:]) or tx("running"), language="text")
+
+
+@st.fragment(run_every=FRAGMENT_RUN_EVERY)
 def render_progress_fragment() -> None:
     fragment_state, fragment_exit_code = process_state()
     active_run_id = st.session_state.get("ui_run_id")
@@ -790,7 +1016,7 @@ def render_progress_fragment() -> None:
         st.rerun(scope="app")
 
 
-@st.fragment(run_every=2)
+@st.fragment(run_every=FRAGMENT_RUN_EVERY)
 def render_prediction_progress_fragment() -> None:
     fragment_state, exit_code = prediction_process_state()
     prediction_id = st.session_state.get("active_prediction_id")
@@ -1005,6 +1231,8 @@ selected_manifest = run_by_id.get(selected_run_id) if selected_run_id else None
 candidates = read_candidates(selected_manifest)
 predictions = scan_predictions()
 prediction_by_id = {prediction["prediction_id"]: prediction for prediction in predictions}
+nr_runs = scan_nr_runs()
+nr_run_by_id = {run["nr_run_id"]: run for run in nr_runs}
 
 preflight = doctor_for(base_config, network=False)
 preflight_fails = [check for check in preflight["checks"] if check["status"] == "fail"]
@@ -1016,16 +1244,18 @@ blocking_fails = [
 ]
 state, exit_code = process_state()
 prediction_state, prediction_exit_code = prediction_process_state()
+nr_state, nr_exit_code = nr_process_state()
 
 st.title("AquaEsterNet-StructMine")
 service_label = f"  |  {tx('service_mode')}" if os.environ.get("AQUA_UI_SERVICE") == "1" else ""
 if remote_access is not None:
     service_label += f"  |  {tx('online_mode')}"
-st.caption(f"v0.3.0  |  Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0{service_label}")
+st.caption(f"v0.4.0  |  Structure + NR + Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0{service_label}")
 
 tabs = st.tabs(
     [
         tx("run_tab"),
+        tx("nr_tab"),
         tx("prediction_tab"),
         tx("candidates_tab"),
         tx("structure_tab"),
@@ -1121,6 +1351,392 @@ with tabs[0]:
         st.dataframe(candidates[preview_columns].head(12), hide_index=True, width="stretch", height=420)
 
 with tabs[1]:
+    st.subheader(tx("nr_workbench"))
+    st.caption(tx("nr_wase_notice"))
+    nr_checks = {
+        check["name"]: check
+        for check in preflight["checks"]
+        if check["name"] in {"mmseqs2", "ncbi_blast_plus", "nr_demo_snapshot"}
+    }
+    snapshot_ready = nr_checks.get("nr_demo_snapshot", {}).get("status") == "pass"
+    mmseqs_ready = nr_checks.get("mmseqs2", {}).get("status") == "pass"
+
+    scope_label = st.segmented_control(
+        tx("nr_scope"),
+        options=[tx("nr_local_scope"), tx("nr_full_scope")],
+        default=tx("nr_local_scope"),
+        width="stretch",
+    )
+    source_run_id = st.selectbox(
+        tx("nr_source_run"),
+        options=run_options,
+        index=0 if run_options else None,
+        format_func=lambda value: f"{run_by_id[value].get('status', '?')} | {value}",
+        disabled=not run_options or nr_state == "running",
+        placeholder=tx("not_run"),
+        key="nr_source_structure_run",
+    )
+
+    if scope_label == tx("nr_local_scope"):
+        snapshot_columns = st.columns([1.25, 1.5, 1])
+        nr_email = snapshot_columns[0].text_input(
+            tx("nr_contact_email"),
+            value=os.environ.get("AQUA_NCBI_EMAIL", ""),
+            placeholder="name@example.org",
+        )
+        nr_consent = snapshot_columns[1].checkbox(tx("nr_consent"), value=False)
+        build_snapshot = snapshot_columns[2].button(
+            tx("nr_build_snapshot"),
+            icon=":material/cloud_download:",
+            width="stretch",
+            disabled=(
+                nr_state == "running"
+                or snapshot_ready
+                or "@" not in nr_email
+                or not nr_consent
+            ),
+        )
+        if snapshot_ready:
+            st.success(tx("nr_snapshot"), icon=":material/verified:")
+        else:
+            st.info(tx("nr_snapshot_missing"), icon=":material/info:")
+
+        local_controls = st.columns([1, 1, 1.2])
+        run_local = local_controls[0].button(
+            tx("nr_expand_local"),
+            type="primary",
+            icon=":material/hub:",
+            width="stretch",
+            disabled=(
+                nr_state == "running"
+                or not source_run_id
+                or not snapshot_ready
+                or not mmseqs_ready
+            ),
+        )
+        if local_controls[1].button(
+            tx("cancel"),
+            icon=":material/stop:",
+            width="stretch",
+            disabled=nr_state != "running",
+            key="cancel_nr_local",
+        ):
+            cancel_nr_process()
+            st.rerun()
+        local_controls[2].metric(
+            tx("nr_integrity"),
+            "nr_remote_snapshot" if snapshot_ready else tx("blocked"),
+        )
+
+        if build_snapshot:
+            task_id = make_run_id("nr-demo-build")
+            start_nr_process(
+                task_id,
+                [
+                    "nr-demo-build",
+                    "--query-fasta",
+                    "data/query/Bur01m_seed.fasta",
+                    "--email",
+                    nr_email,
+                    "--max-hits",
+                    "2500",
+                    "--confirm-ncbi",
+                ],
+            )
+            st.rerun()
+        if run_local and source_run_id:
+            nr_run_id = make_run_id("nr-local")
+            start_nr_process(
+                nr_run_id,
+                [
+                    "nr-expand",
+                    "--source-run",
+                    source_run_id,
+                    "--config",
+                    "configs/nr_local_demo.yaml",
+                    "--nr-run-id",
+                    nr_run_id,
+                ],
+            )
+            st.rerun()
+    else:
+        st.info(tx("nr_server_note"), icon=":material/dns:")
+        server_controls = st.columns([1, 1, 1.35])
+        export_job = server_controls[0].button(
+            tx("nr_export_job"),
+            type="primary",
+            icon=":material/package_2:",
+            width="stretch",
+            disabled=nr_state == "running" or not source_run_id,
+        )
+        if server_controls[1].button(
+            tx("cancel"),
+            icon=":material/stop:",
+            width="stretch",
+            disabled=nr_state != "running",
+            key="cancel_nr_server",
+        ):
+            cancel_nr_process()
+            st.rerun()
+        server_controls[2].metric(tx("nr_integrity"), "full_nr | SHA-256")
+        if export_job and source_run_id:
+            nr_run_id = make_run_id("nr-full")
+            start_nr_process(
+                nr_run_id,
+                [
+                    "nr-export-job",
+                    "--source-run",
+                    source_run_id,
+                    "--config",
+                    "configs/nr_full_server.yaml",
+                    "--nr-run-id",
+                    nr_run_id,
+                ],
+            )
+            st.rerun()
+
+        import_columns = st.columns([2.5, 1])
+        server_archive = import_columns[0].file_uploader(
+            tx("nr_result_zip"),
+            type=["zip"],
+            key="nr_server_result_upload",
+        )
+        import_clicked = import_columns[1].button(
+            tx("nr_import_job"),
+            icon=":material/upload_file:",
+            width="stretch",
+            disabled=nr_state == "running" or server_archive is None,
+        )
+        if import_clicked and server_archive is not None:
+            UI_NR_INPUTS.mkdir(parents=True, exist_ok=True)
+            uploaded_path = UI_NR_INPUTS / (
+                f"{make_run_id('nr-import')}_{Path(server_archive.name).name}"
+            )
+            uploaded_path.write_bytes(server_archive.getvalue())
+            start_nr_process(
+                make_run_id("nr-import"),
+                ["nr-import-job", "--bundle", str(uploaded_path)],
+            )
+            st.rerun()
+
+    render_nr_progress_fragment()
+
+    st.subheader(tx("nr_run_history"))
+    if not nr_runs:
+        st.info(tx("nr_no_runs"))
+    else:
+        nr_run_ids = list(nr_run_by_id)
+        preferred_nr_run = st.session_state.get("prediction_nr_run_id", "")
+        nr_default = nr_run_ids.index(preferred_nr_run) if preferred_nr_run in nr_run_ids else 0
+        selected_nr_run_id = st.selectbox(
+            tx("nr_run_history"),
+            nr_run_ids,
+            index=nr_default,
+            format_func=lambda value: (
+                f"{nr_run_by_id[value].get('database_scope', '?')} | "
+                f"{nr_run_by_id[value].get('status', '?')} | {value}"
+            ),
+            key="selected_nr_run",
+        )
+        selected_nr_manifest = nr_run_by_id[selected_nr_run_id]
+        selected_nr_candidates = read_nr_candidates(selected_nr_manifest)
+        nr_metrics = st.columns(4)
+        nr_metrics[0].metric(tx("status"), selected_nr_manifest.get("status", ""))
+        nr_metrics[1].metric(
+            tx("nr_representatives"),
+            selected_nr_manifest.get("representative_count", 0),
+        )
+        nr_metrics[2].metric(
+            tx("nr_af2_ready"),
+            selected_nr_manifest.get("af2_ready_count", 0),
+        )
+        nr_metrics[3].metric(
+            tx("nr_scope"),
+            selected_nr_manifest.get("database_scope", ""),
+        )
+        for warning in selected_nr_manifest.get("warnings", []):
+            st.warning(warning)
+
+        selected_nr_events = read_nr_events(selected_nr_manifest)
+        if selected_nr_events:
+            st.markdown(f"**{tx('nr_pipeline_trace')}**")
+            nr_event_rows = [
+                {
+                    "time": _clean_value(event.get("timestamp", ""))[11:19],
+                    "stage": _clean_value(event.get("stage", "")),
+                    "state": _clean_value(event.get("state", "")),
+                    "progress": (
+                        f"{float(event.get('progress')) * 100:.0f}%"
+                        if event.get("progress") is not None
+                        else ""
+                    ),
+                    "message": _clean_value(event.get("message", "")),
+                }
+                for event in selected_nr_events[-10:]
+            ]
+            st.dataframe(
+                pd.DataFrame(nr_event_rows),
+                hide_index=True,
+                width="stretch",
+                height=min(340, 38 * (len(nr_event_rows) + 1)),
+            )
+
+        if selected_nr_candidates.empty:
+            st.info(tx("no_results"))
+        else:
+            filter_columns = st.columns(3)
+            minimum_nr_qcov = filter_columns[0].slider(
+                tx("nr_min_qcov"),
+                min_value=0.0,
+                max_value=1.0,
+                value=0.60,
+                step=0.05,
+            )
+            triad_only = filter_columns[1].toggle(tx("nr_triad"), value=False)
+            af2_only = filter_columns[2].toggle(tx("nr_af2_ready"), value=False)
+            filtered_nr = selected_nr_candidates.copy()
+            filtered_nr = filtered_nr[
+                pd.to_numeric(filtered_nr.get("qcov", 0), errors="coerce").fillna(0)
+                >= minimum_nr_qcov
+            ]
+            if triad_only and "mapped_catalytic_identity_count" in filtered_nr:
+                filtered_nr = filtered_nr[
+                    pd.to_numeric(
+                        filtered_nr["mapped_catalytic_identity_count"],
+                        errors="coerce",
+                    ).fillna(0)
+                    == 3
+                ]
+            if af2_only and "af2_ready" in filtered_nr:
+                filtered_nr = filtered_nr[
+                    filtered_nr["af2_ready"].fillna(False).astype(bool)
+                ]
+            nr_display_columns = [
+                column
+                for column in (
+                    "nr_rank",
+                    "target_accession",
+                    "organism",
+                    "evalue",
+                    "fident",
+                    "qcov",
+                    "mapped_catalytic_identity_count",
+                    "af2_ready",
+                    "wase_tier",
+                    "sequence_screen_status",
+                )
+                if column in filtered_nr.columns
+            ]
+            nr_column_config: dict[str, Any] = {
+                "nr_rank": st.column_config.NumberColumn("排名", format="%d", width="small"),
+                "target_accession": st.column_config.TextColumn("accession", width="medium"),
+                "organism": st.column_config.TextColumn(
+                    "物种" if st.session_state.language == "zh" else "Organism",
+                    width="medium",
+                ),
+                "evalue": st.column_config.NumberColumn(
+                    "E-value",
+                    format="%.2e",
+                    width="small",
+                ),
+                "fident": st.column_config.NumberColumn(
+                    "一致性" if st.session_state.language == "zh" else "Identity",
+                    format="%.2f",
+                    width="small",
+                ),
+                "qcov": st.column_config.NumberColumn(
+                    "查询覆盖" if st.session_state.language == "zh" else "Query coverage",
+                    format="%.2f",
+                    width="small",
+                ),
+                "mapped_catalytic_identity_count": st.column_config.NumberColumn(
+                    "三联体" if st.session_state.language == "zh" else "Triad",
+                    format="%d / 3",
+                    width="small",
+                ),
+                "af2_ready": st.column_config.CheckboxColumn("AF2-ready", width="small"),
+                "wase_tier": st.column_config.TextColumn(
+                    "WASE-screen",
+                    width="medium",
+                ),
+                "sequence_screen_status": st.column_config.TextColumn(
+                    "预筛状态" if st.session_state.language == "zh" else "Prescreen status",
+                    width="medium",
+                ),
+            }
+            st.markdown(f"**{tx('nr_sequence_evidence')}**")
+            nr_display = filtered_nr[nr_display_columns].copy()
+            if st.session_state.language == "zh" and "wase_tier" in nr_display:
+                nr_display["wase_tier"] = nr_display["wase_tier"].replace(
+                    {"Not evaluated - structure required": "未评估：待结构复核"}
+                )
+            st.dataframe(
+                nr_display,
+                hide_index=True,
+                width="stretch",
+                height=440,
+                column_config=nr_column_config,
+            )
+
+            action_columns = st.columns([2.4, 1, 1])
+            nr_candidate_labels = [
+                f"{_clean_value(row.get('target_accession')) or _clean_value(row.get('sequence_id'))} | "
+                f"{_clean_value(row.get('organism')) or _clean_value(row.get('target'))}"
+                for _, row in filtered_nr.iterrows()
+            ]
+            selected_nr_candidate = action_columns[0].selectbox(
+                tx("nr_accession"),
+                nr_candidate_labels,
+                disabled=not nr_candidate_labels,
+            )
+            if action_columns[1].button(
+                tx("nr_send_af2"),
+                icon=":material/model_training:",
+                width="stretch",
+                disabled=not nr_candidate_labels,
+            ):
+                selected_index = nr_candidate_labels.index(selected_nr_candidate)
+                selected_row = filtered_nr.iloc[selected_index]
+                st.session_state.prediction_nr_accession = (
+                    _clean_value(selected_row.get("target_accession"))
+                    or _clean_value(selected_row.get("sequence_id"))
+                )
+                st.session_state.prediction_nr_run_id = selected_nr_run_id
+                st.info(tx("prediction_tab"))
+            if action_columns[2].button(
+                tx("open_folder"),
+                icon=":material/folder_open:",
+                width="stretch",
+                disabled=remote_access is not None,
+                key="open_nr_folder",
+            ):
+                open_folder(selected_nr_manifest["_nr_run_dir"])
+
+            artifacts = selected_nr_manifest.get("artifacts", {})
+            download_columns = st.columns(3)
+            for column, key, label, mime in (
+                (
+                    download_columns[0],
+                    "candidates_xlsx",
+                    "download_excel",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ),
+                (download_columns[1], "candidates_tsv", "download_tsv", "text/tab-separated-values"),
+                (download_columns[2], "candidates_fasta", "download_fasta", "text/plain"),
+            ):
+                path_text = _clean_value(artifacts.get(key, ""))
+                path = Path(path_text) if path_text else Path("__missing_nr_artifact__")
+                column.download_button(
+                    tx(label),
+                    data=path.read_bytes() if path.is_file() else b"",
+                    file_name=path.name if path.is_file() else key,
+                    mime=mime,
+                    icon=":material/download:",
+                    width="stretch",
+                    disabled=not path.is_file(),
+                )
+
+with tabs[2]:
     st.subheader(tx("af_workbench"))
     prediction_checks = {
         check["name"]: check for check in preflight["checks"] if check["name"] in {"wsl_gpu", "colabfold", "jax_cuda"}
@@ -1130,8 +1746,18 @@ with tabs[1]:
         for check in prediction_blockers:
             st.warning(doctor_message(check), icon=":material/warning:")
 
-    input_labels = [tx("paste_fasta"), tx("upload_fasta"), tx("candidate_input")]
-    preferred_mode = tx("candidate_input") if st.session_state.get("prediction_candidate_accession") else tx("paste_fasta")
+    input_labels = [
+        tx("paste_fasta"),
+        tx("upload_fasta"),
+        tx("candidate_input"),
+        tx("nr_candidate_input"),
+    ]
+    if st.session_state.get("prediction_nr_accession"):
+        preferred_mode = tx("nr_candidate_input")
+    elif st.session_state.get("prediction_candidate_accession"):
+        preferred_mode = tx("candidate_input")
+    else:
+        preferred_mode = tx("paste_fasta")
     input_mode = st.segmented_control(
         tx("input_mode"),
         options=input_labels,
@@ -1140,6 +1766,7 @@ with tabs[1]:
     )
     prediction_record = None
     candidate_run_id = None
+    candidate_nr_run_id = None
     candidate_accession_value = None
     input_error = ""
     if input_mode == tx("paste_fasta"):
@@ -1161,7 +1788,7 @@ with tabs[1]:
                 prediction_record = parse_single_fasta(upload.getvalue().decode("utf-8-sig"))
             except (UnicodeDecodeError, SequenceValidationError) as exc:
                 input_error = str(exc)
-    else:
+    elif input_mode == tx("candidate_input"):
         if candidates.empty or not selected_manifest:
             st.info(tx("no_results"))
         else:
@@ -1185,6 +1812,69 @@ with tabs[1]:
                 )
             except SequenceValidationError as exc:
                 input_error = str(exc)
+    else:
+        if not nr_runs:
+            st.info(tx("nr_no_runs"))
+        else:
+            nr_run_ids = list(nr_run_by_id)
+            preferred_nr_run = st.session_state.get("prediction_nr_run_id", "")
+            default_nr_index = (
+                nr_run_ids.index(preferred_nr_run)
+                if preferred_nr_run in nr_run_ids
+                else 0
+            )
+            candidate_nr_run_id = st.selectbox(
+                tx("nr_run_history"),
+                nr_run_ids,
+                index=default_nr_index,
+                format_func=lambda value: (
+                    f"{nr_run_by_id[value].get('database_scope', '?')} | {value}"
+                ),
+                key="prediction_nr_run_select",
+            )
+            source_nr_candidates = read_nr_candidates(
+                nr_run_by_id[candidate_nr_run_id]
+            )
+            if source_nr_candidates.empty:
+                st.info(tx("no_results"))
+            else:
+                nr_labels = [
+                    f"{_clean_value(row.get('target_accession')) or _clean_value(row.get('sequence_id'))} | "
+                    f"{_clean_value(row.get('organism')) or _clean_value(row.get('target'))}"
+                    for _, row in source_nr_candidates.iterrows()
+                ]
+                preferred_accession = st.session_state.get(
+                    "prediction_nr_accession",
+                    "",
+                )
+                default_candidate_index = next(
+                    (
+                        index
+                        for index, label in enumerate(nr_labels)
+                        if preferred_accession and label.startswith(preferred_accession)
+                    ),
+                    0,
+                )
+                selected_nr_label = st.selectbox(
+                    tx("nr_accession"),
+                    nr_labels,
+                    index=default_candidate_index,
+                    key="prediction_nr_accession_select",
+                )
+                selected_nr_row = source_nr_candidates.iloc[
+                    nr_labels.index(selected_nr_label)
+                ]
+                candidate_accession_value = (
+                    _clean_value(selected_nr_row.get("target_accession"))
+                    or _clean_value(selected_nr_row.get("sequence_id"))
+                )
+                try:
+                    prediction_record = validate_sequence(
+                        candidate_accession_value,
+                        _clean_value(selected_nr_row.get("target_sequence")),
+                    )
+                except SequenceValidationError as exc:
+                    input_error = str(exc)
 
     if input_error:
         st.error(input_error, icon=":material/error:")
@@ -1278,7 +1968,7 @@ with tabs[1]:
         try:
             prediction_id = make_run_id(f"AF2-{prediction_record.name}")
             fasta_path = None
-            if input_mode != tx("candidate_input"):
+            if input_mode in {tx("paste_fasta"), tx("upload_fasta")}:
                 UI_PREDICTION_INPUTS.mkdir(parents=True, exist_ok=True)
                 fasta_path = UI_PREDICTION_INPUTS / f"{prediction_id}.fasta"
                 fasta_path.write_text(prediction_record.to_fasta(), encoding="ascii")
@@ -1290,10 +1980,13 @@ with tabs[1]:
                 catalytic_sites=manual_overrides,
                 fasta_path=fasta_path,
                 candidate_run_id=candidate_run_id,
+                candidate_nr_run_id=candidate_nr_run_id,
                 accession=candidate_accession_value,
                 mine_after=predict_mine_clicked,
             )
             st.session_state.pop("prediction_candidate_accession", None)
+            st.session_state.pop("prediction_nr_accession", None)
+            st.session_state.pop("prediction_nr_run_id", None)
             st.rerun()
         except Exception as exc:  # noqa: BLE001
             st.error(f"{tx('start_error')}: {type(exc).__name__}: {exc}")
@@ -1363,7 +2056,7 @@ with tabs[1]:
             st.markdown(f"**{tx('predicted_structure')}**")
             render_prediction_structure(rank_path)
 
-with tabs[2]:
+with tabs[3]:
     st.subheader(tx("candidate_table"))
     if candidates.empty:
         st.info(tx("no_results"))
@@ -1491,7 +2184,7 @@ with tabs[2]:
             st.session_state.prediction_candidate_accession = repredict_choice.split(" · ", 1)[0]
             st.info(tx("prediction_tab"))
 
-with tabs[3]:
+with tabs[4]:
     st.subheader(tx("overlay"))
     if candidates.empty or not selected_manifest:
         st.info(tx("no_results"))
@@ -1540,7 +2233,7 @@ with tabs[3]:
             except Exception as exc:  # noqa: BLE001
                 st.error(f"{type(exc).__name__}: {exc}")
 
-with tabs[4]:
+with tabs[5]:
     st.subheader(tx("history"))
     if not runs:
         st.info(tx("not_run"))
@@ -1593,7 +2286,7 @@ with tabs[4]:
             except Exception as exc:  # noqa: BLE001
                 st.error(f"{type(exc).__name__}: {exc}")
 
-with tabs[5]:
+with tabs[6]:
     st.subheader(tx("diagnostic_results"))
     diagnostic_controls = st.columns([1, 1, 2])
     network_check = diagnostic_controls[0].toggle(tx("network"), value=False)

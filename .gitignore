@@ -13,6 +13,7 @@ env/
 
 # Large databases
 databases/
+databases/nr_demo/
 data/ncbi/*.fa
 data/ncbi/*.faa
 data/ncbi/*.fasta
@@ -29,6 +30,8 @@ temp/
 
 # Results
 results/
+results/nr_runs/
+results/nr_novelty/
 models/
 model_weights/
 *.a3m

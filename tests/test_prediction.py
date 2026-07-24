@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import pandas as pd
 import yaml
 
 from bur01_structmine.colabfold_runtime import (
@@ -14,7 +15,7 @@ from bur01_structmine.colabfold_runtime import (
     ProcessFileLock,
     ResourceBusyError,
 )
-from bur01_structmine.models import PredictionManifest, PredictionRequest
+from bur01_structmine.models import NrRunManifest, PredictionManifest, PredictionRequest
 from bur01_structmine.config import project_root
 from bur01_structmine.prediction import PrivacyConsentRequired, run_prediction, run_prediction_and_mine
 
@@ -155,3 +156,60 @@ def test_fake_prediction_and_local_mining_are_bidirectionally_linked(tmp_path: P
     mining_manifest = json.loads(mining.manifest_path.read_text(encoding="utf-8"))
     assert mining_manifest["parent_prediction_id"] == prediction.prediction_id
     assert mining.raw_hit_count > 0
+
+
+def test_nr_candidate_prediction_keeps_bidirectional_provenance(
+    tmp_path: Path,
+) -> None:
+    nr_run_id = "nr-candidate-source"
+    nr_run_dir = tmp_path / "nr_runs" / nr_run_id
+    nr_run_dir.mkdir(parents=True)
+    candidates_path = nr_run_dir / "candidates.tsv"
+    pd.DataFrame(
+        [
+            {
+                "target": "ref|WP_TEST_NR.1|",
+                "target_accession": "WP_TEST_NR.1",
+                "sequence_id": "nr_0000001",
+                "target_sequence": SEQUENCE,
+                "af2_ready": True,
+                "wase_tier": "Not evaluated - structure required",
+            }
+        ]
+    ).to_csv(candidates_path, sep="\t", index=False)
+    nr_manifest_path = nr_run_dir / "nr_run_manifest.json"
+    nr_manifest_path.write_text(
+        NrRunManifest(
+            nr_run_id=nr_run_id,
+            status="completed",
+            parent_structure_run_id="structure-run",
+            database_scope="nr_remote_snapshot",
+            artifacts={"candidates_tsv": str(candidates_path.resolve())},
+        ).model_dump_json(indent=2),
+        encoding="utf-8",
+    )
+    request = PredictionRequest(
+        candidate_nr_run_id=nr_run_id,
+        accession="WP_TEST_NR.1",
+        preset="quick",
+        confirm_public_msa=True,
+        prediction_id="nr-linked-prediction",
+        output_root=str(tmp_path / "predictions"),
+        msa_cache_dir=str(tmp_path / "msa_cache"),
+        candidate_nr_run_root=str(tmp_path / "nr_runs"),
+        runtime_backend="native",
+        colabfold_executable=str(FAKE_COLABFOLD),
+    )
+
+    summary = run_prediction(request)
+
+    prediction = PredictionManifest.model_validate_json(
+        summary.manifest_path.read_text(encoding="utf-8")
+    )
+    linked_nr = NrRunManifest.model_validate_json(
+        nr_manifest_path.read_text(encoding="utf-8")
+    )
+    assert prediction.source_type == "nr_candidate"
+    assert prediction.source_nr_run_id == nr_run_id
+    assert prediction.source_accession == "WP_TEST_NR.1"
+    assert prediction.prediction_id in linked_nr.child_prediction_ids

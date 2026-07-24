@@ -18,6 +18,7 @@ from .config import load_config, resolve_path
 from .colabfold_runtime import ColabFoldRuntime, ColabFoldUnavailable, process_exists
 from .datasources import load_search_databases
 from .foldseek_runner import FoldseekUnavailable, get_foldseek_version
+from .mmseqs_runner import MmseqsUnavailable, get_mmseqs_version
 from .run_context import file_sha256
 from .structure_search import load_ca_trace
 
@@ -125,6 +126,94 @@ def _database_exists(path: Path) -> bool:
     return path.exists() or Path(f"{path}.dbtype").exists() or Path(f"{path}.index").exists()
 
 
+def _nr_snapshot_check() -> DoctorCheck:
+    pointer_path = resolve_path("databases/nr_demo/latest.json")
+    if not pointer_path.is_file():
+        return _check(
+            "nr_demo_snapshot",
+            "nr",
+            "warn",
+            "No local NR hit snapshot is installed; run nr-demo-build with explicit NCBI consent",
+            path=str(pointer_path),
+            database_scope="not_installed",
+        )
+    try:
+        pointer = json.loads(pointer_path.read_text(encoding="utf-8"))
+        fasta_path = Path(pointer["fasta_path"])
+        manifest_path = Path(pointer["manifest_path"])
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        checksum_ok = (
+            fasta_path.is_file()
+            and file_sha256(fasta_path) == manifest.get("fasta_sha256")
+        )
+        scope_ok = manifest.get("database_scope") == "nr_remote_snapshot"
+        return _check(
+            "nr_demo_snapshot",
+            "nr",
+            "pass" if checksum_ok and scope_ok else "fail",
+            (
+                f"Local NCBI NR hit snapshot: {manifest.get('sequence_count', 0)} sequences"
+                if checksum_ok and scope_ok
+                else "Local NR snapshot provenance or checksum is invalid"
+            ),
+            path=str(fasta_path),
+            database_scope=manifest.get("database_scope", ""),
+            created_at=manifest.get("created_at", ""),
+            sequence_count=manifest.get("sequence_count", 0),
+            checksum_ok=checksum_ok,
+        )
+    except (OSError, KeyError, json.JSONDecodeError) as exc:
+        return _check(
+            "nr_demo_snapshot",
+            "nr",
+            "fail",
+            f"{type(exc).__name__}: {exc}",
+            path=str(pointer_path),
+        )
+
+
+def _nr_job_bundle_check() -> DoctorCheck:
+    run_root = resolve_path("results/nr_runs")
+    bundles = list(run_root.glob("*/job_bundle/BUNDLE_SHA256SUMS"))
+    if not bundles:
+        return _check(
+            "full_nr_job_bundles",
+            "nr",
+            "warn",
+            "No complete-NR server job bundle has been exported",
+            run_root=str(run_root),
+            minimum_server_ram_gb=128,
+            recommended_free_disk_gb=500,
+        )
+    invalid: list[str] = []
+    for checksum_path in bundles:
+        bundle_dir = checksum_path.parent
+        try:
+            for line in checksum_path.read_text(encoding="ascii").splitlines():
+                if not line.strip():
+                    continue
+                checksum, relative = line.split(maxsplit=1)
+                target = bundle_dir / relative.strip()
+                if not target.is_file() or file_sha256(target) != checksum:
+                    invalid.append(str(target))
+        except (OSError, ValueError):
+            invalid.append(str(checksum_path))
+    return _check(
+        "full_nr_job_bundles",
+        "nr",
+        "pass" if not invalid else "fail",
+        (
+            f"{len(bundles)} complete-NR server job bundle(s) passed local integrity checks"
+            if not invalid
+            else f"{len(invalid)} full-NR bundle file(s) failed integrity checks"
+        ),
+        bundle_count=len(bundles),
+        invalid=invalid[:20],
+        minimum_server_ram_gb=128,
+        recommended_free_disk_gb=500,
+    )
+
+
 def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = True) -> DoctorReport:
     checks: list[DoctorCheck] = []
     try:
@@ -132,7 +221,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         checks.append(_check("configuration", "project", "pass", "Configuration is valid"))
     except Exception as exc:  # noqa: BLE001 - doctor must aggregate all configuration failures.
         checks.append(_check("configuration", "project", "fail", f"{type(exc).__name__}: {exc}"))
-        return DoctorReport("0.3.0", platform.platform(), checks)
+        return DoctorReport("0.4.0", platform.platform(), checks)
     configured_sources = load_search_databases(cfg)
     needs_foldseek = any(source.search_engine not in LOCAL_ENGINES for source in configured_sources)
 
@@ -231,6 +320,66 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         wsl_distribution=configured_distro,
     )
     if configured_distro in distributions:
+        try:
+            mmseqs_version = get_mmseqs_version(
+                backend="wsl",
+                wsl_distribution=configured_distro,
+                wsl_executable="/opt/colabfold/env/bin/mmseqs",
+            )
+            checks.append(
+                _check(
+                    "mmseqs2",
+                    "nr",
+                    "pass" if mmseqs_version == "18.8cc5c" else "warn",
+                    f"MMseqs2 {mmseqs_version}",
+                    expected_version="18.8cc5c",
+                    executable="/opt/colabfold/env/bin/mmseqs",
+                )
+            )
+        except (MmseqsUnavailable, OSError, subprocess.SubprocessError) as exc:
+            checks.append(
+                _check("mmseqs2", "nr", "fail", f"{type(exc).__name__}: {exc}")
+            )
+
+        try:
+            blast_result = subprocess.run(
+                [
+                    "wsl.exe",
+                    "-d",
+                    configured_distro,
+                    "--",
+                    "/opt/ncbi-blast/bin/blastp",
+                    "-version",
+                ],
+                capture_output=True,
+                text=True,
+                errors="replace",
+                timeout=30,
+                check=False,
+            )
+            blast_text = (blast_result.stdout or blast_result.stderr).strip()
+            checks.append(
+                _check(
+                    "ncbi_blast_plus",
+                    "nr",
+                    "pass"
+                    if blast_result.returncode == 0 and "2.17.0" in blast_text
+                    else "warn",
+                    blast_text or "NCBI BLAST+ is not installed at the locked path",
+                    expected_version="2.17.0",
+                    executable="/opt/ncbi-blast/bin/blastp",
+                )
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            checks.append(
+                _check(
+                    "ncbi_blast_plus",
+                    "nr",
+                    "warn",
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+
         try:
             gpu_result = subprocess.run(
                 [
@@ -387,10 +536,12 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         checks.append(_check("query_structure", "project", "fail", f"{type(exc).__name__}: {exc}", path=str(query_path)))
 
     prediction_root = resolve_path("results/predictions")
+    nr_run_root = resolve_path("results/nr_runs")
     data_paths = [
         resolve_path("databases"),
         resolve_path(cfg["output"].get("run_root", "results/runs")),
         prediction_root,
+        nr_run_root,
     ]
     if os.name == "nt" and Path("D:/").exists():
         data_paths.append(Path("D:/Apps"))
@@ -422,6 +573,22 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         checks.append(_check("output_permissions", "storage", "fail", str(exc), path=str(output_root)))
 
     checks.extend(_drive_checks(data_paths))
+    checks.append(_nr_snapshot_check())
+    checks.append(_nr_job_bundle_check())
+    ncbi_email = os.environ.get("AQUA_NCBI_EMAIL", "").strip()
+    checks.append(
+        _check(
+            "ncbi_contact_email",
+            "nr",
+            "pass" if "@" in ncbi_email else "warn",
+            (
+                "AQUA_NCBI_EMAIL is configured"
+                if "@" in ncbi_email
+                else "AQUA_NCBI_EMAIL is required before a real remote NR request"
+            ),
+            configured=bool(ncbi_email),
+        )
+    )
 
     gpu_lock = prediction_root / ".gpu.lock"
     if gpu_lock.exists():
@@ -457,9 +624,10 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             "rcsb": "https://data.rcsb.org/rest/v1/core/entry/8HFW",
             "alphafold": "https://alphafold.ebi.ac.uk/api/prediction/Q6RYA0",
             "colabfold_msa": "https://api.colabfold.com",
+            "ncbi_blast_policy": "https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html",
         }
         session = requests.Session()
-        session.headers.update({"User-Agent": "AquaEsterNet-StructMine/0.3.0 doctor"})
+        session.headers.update({"User-Agent": "AquaEsterNet-StructMine/0.4.0 doctor"})
         for name, url in endpoints.items():
             try:
                 response = session.get(url, timeout=15)
@@ -469,7 +637,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             except requests.RequestException as exc:
                 checks.append(_check(f"network_{name}", "network", "warn", f"{type(exc).__name__}: {exc}", url=url))
 
-    return DoctorReport("0.3.0", platform.platform(), checks)
+    return DoctorReport("0.4.0", platform.platform(), checks)
 
 
 def print_doctor(report: DoctorReport) -> None:

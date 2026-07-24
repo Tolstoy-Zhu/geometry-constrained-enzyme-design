@@ -1,5 +1,5 @@
 schema_version: 1
-project_version: 0.3.0
+project_version: 0.4.0
 scope: local_monomer_alphafold2_ptm
 
 runtime:

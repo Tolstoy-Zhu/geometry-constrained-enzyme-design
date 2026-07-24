@@ -12,6 +12,7 @@ This file is an inventory, not a replacement for the complete license text shipp
 | JAX | 0.5.3 | Apache-2.0 | https://github.com/jax-ml/jax |
 | OpenMM | 8.5.2 | See upstream bundled notices | https://github.com/openmm/openmm |
 | MMseqs2 | 18.8cc5c | GPL-3.0 | https://github.com/soedinglab/MMseqs2 |
+| NCBI BLAST+ | 2.17.0 | Public domain / NCBI terms and bundled notices | https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/ |
 | HHsuite | 3.3.0 | GPL-3.0 | https://github.com/soedinglab/hh-suite |
 | tmtools | 0.3.0 | GPL-3.0 | https://github.com/jvkersch/tmtools |
 | Streamlit | 1.59.1 | Apache-2.0 | https://github.com/streamlit/streamlit |
@@ -31,6 +32,7 @@ This file is an inventory, not a replacement for the complete license text shipp
 
 Exact transitive dependency versions are recorded in `requirements.lock.txt`.
 The isolated WSL prediction environment is recorded in `configs/prediction_runtime.lock.yaml`, `/opt/colabfold/pip-freeze.txt`, and `/opt/colabfold/conda-lock.json`.
+The NR runtime source, version, official MD5, and locally verified SHA-256 are recorded in `configs/nr_runtime.lock.yaml` and `/opt/ncbi-blast/2.17.0/INSTALL_PROVENANCE.json`.
 UI acceptance uses the locally installed Microsoft Edge browser under Microsoft's product terms; no browser binary is redistributed.
 
 ## Cloudflare Tunnel
@@ -60,5 +62,8 @@ The project retrieves metadata or structures from RCSB PDB, UniProt, AlphaFold D
 - UniProt: https://www.uniprot.org/help/license
 - AlphaFold DB: https://alphafold.ebi.ac.uk/
 - NCBI: https://www.ncbi.nlm.nih.gov/home/about/policies/
+- NCBI BLAST API guidance: https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html
+
+The NCBI remote NR route can transmit the submitted protein sequence. It requires a contact email and explicit confirmation for every cache miss, serializes requests, and applies NCBI-compatible polling. Query-derived local snapshots, complete NR databases, real candidates, caches, logs, and returned server archives are excluded from Git and public Release assets.
 
 Downloaded databases and structures are not relicensed by this project. Source URLs, accessions, versions, and checksums are preserved where available.

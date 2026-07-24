@@ -1,0 +1,107 @@
+{
+  "project_version": "0.4.0",
+  "passed": true,
+  "captured_at": "2026-07-24T08:59:30.754578+00:00",
+  "data_scope": "sanitized deterministic UI validation fixture",
+  "real_ncbi_result": false,
+  "scientific_guardrail": "Sequence-only NR evidence; WASE-screen remains unevaluated until AF2/Foldseek/TM-align validation.",
+  "viewports": {
+    "desktop_css": {
+      "width": 1440,
+      "height": 900
+    },
+    "desktop_output_pixels": {
+      "width": 2880,
+      "height": 1800
+    },
+    "mobile_css": {
+      "width": 390,
+      "height": 844
+    },
+    "mobile_output_pixels": {
+      "width": 780,
+      "height": 1688
+    }
+  },
+  "screenshots": [
+    {
+      "path": "docs/screenshots/nr_workflow_01_workbench.png",
+      "pixels": {
+        "width": 2880,
+        "height": 1800
+      },
+      "pixel_variance": 878.768,
+      "sha256": "7c1136a75a6da2cd958b42e64ad4e4b7281526fcae9749252227bb0484185b5b"
+    },
+    {
+      "path": "docs/screenshots/nr_workflow_02_processing_trace.png",
+      "pixels": {
+        "width": 2880,
+        "height": 1800
+      },
+      "pixel_variance": 1027.96,
+      "sha256": "86bba23aaa2bf57c0abcb54e606a52c06566bf7914374d9fceb3f23a329aca12"
+    },
+    {
+      "path": "docs/screenshots/nr_workflow_03_candidates.png",
+      "pixels": {
+        "width": 2880,
+        "height": 1800
+      },
+      "pixel_variance": 757.274,
+      "sha256": "26ce7fa15071590c25b90d4b190a4d516fcfdb9f3a11f1d928c327a997cd2141"
+    },
+    {
+      "path": "docs/screenshots/nr_workflow_04_server_job.png",
+      "pixels": {
+        "width": 2880,
+        "height": 1800
+      },
+      "pixel_variance": 866.903,
+      "sha256": "ee56b449e8ce4dc79d146fc6aafaf286a30b981820a73ae98c7abfd13da45d86"
+    },
+    {
+      "path": "docs/screenshots/nr_workflow_05_mobile.png",
+      "pixels": {
+        "width": 780,
+        "height": 1688
+      },
+      "pixel_variance": 2141.021,
+      "sha256": "ab156f19e3a978b3d8276bef373bef7ee929c2d916d182a8cbb07d74f9cd7d5d"
+    }
+  ],
+  "layout_checks": {
+    "desktop": {
+      "dimensions": {
+        "innerWidth": 1440,
+        "innerHeight": 900,
+        "scrollWidth": 1440,
+        "bodyScrollWidth": 1440
+      },
+      "keyboard_focus": {
+        "tag": "INPUT",
+        "role": "combobox",
+        "visible": true
+      }
+    },
+    "mobile": {
+      "dimensions": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "scrollWidth": 390,
+        "bodyScrollWidth": 390
+      },
+      "keyboard_focus": {
+        "tag": "A",
+        "role": "",
+        "visible": true
+      }
+    }
+  },
+  "temporary_service": {
+    "binding": "localhost ephemeral port",
+    "hidden_window": true,
+    "devtunnel_started": false,
+    "stopped_after_capture": true
+  }
+}

@@ -52,8 +52,10 @@ def test_streamlit_remote_gate_unlocks_the_workbench(monkeypatch, tmp_path: Path
     access_path = tmp_path / "access.json"
     access_path.write_text(json.dumps(_record(password)), encoding="utf-8")
     monkeypatch.setenv("AQUA_REMOTE_ACCESS_PATH", str(access_path))
+    monkeypatch.setenv("AQUA_TEST_MODE", "1")
     monkeypatch.setenv("AQUA_RUN_ROOT", str(tmp_path / "runs"))
     monkeypatch.setenv("AQUA_PREDICTION_ROOT", str(tmp_path / "predictions"))
+    monkeypatch.setenv("AQUA_NR_RUN_ROOT", str(tmp_path / "nr_runs"))
 
     test = AppTest.from_file(str(project_root() / "ui" / "app.py"), default_timeout=60).run(timeout=60)
     assert not test.exception
@@ -64,4 +66,12 @@ def test_streamlit_remote_gate_unlocks_the_workbench(monkeypatch, tmp_path: Path
     test.button[0].click().run(timeout=60)
 
     assert not test.exception
-    assert [tab.label for tab in test.tabs] == ["运行", "AF预测", "候选", "结构", "历史", "诊断"]
+    assert [tab.label for tab in test.tabs] == [
+        "运行",
+        "NR挖掘",
+        "AF预测",
+        "候选",
+        "结构",
+        "历史",
+        "诊断",
+    ]

@@ -1,0 +1,36 @@
+schema_version: 1
+project_version: 0.4.0
+verified_on: 2026-07-24
+
+mmseqs2:
+  version: 18.8cc5c
+  local_path: /opt/colabfold/env/bin/mmseqs
+  upstream: https://github.com/soedinglab/MMseqs2
+  purpose: iterative NR search and 50 percent sequence identity clustering
+
+ncbi_blast_plus:
+  version: 2.17.0
+  local_path: /opt/ncbi-blast/bin/blastp
+  archive_url: https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.17.0/ncbi-blast-2.17.0+-x64-linux.tar.gz
+  official_md5: bdec166721de3b55f90a3badc83538e8
+  sha256: 3888112d8207831aa47371d93583c601f058f88b5db22dc782438b039a3a411b
+  official_index: https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/
+  purpose: local BLAST utilities and runtime diagnostics
+
+ncbi_remote_blast:
+  endpoint: https://blast.ncbi.nlm.nih.gov/Blast.cgi
+  database: nr
+  program: blastp
+  usage_policy: https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html
+  requires:
+    - AQUA_NCBI_EMAIL
+    - explicit_per_request_consent
+
+paper_preset:
+  name: hong2025
+  iterations: 2
+  max_seqs: 2500
+  search_type: 1
+  cluster_min_sequence_identity: 0.50
+  source_search: https://github.com/ai4protein/VenusMine/tree/main/Step3%20MMseqs%20Search
+  source_cluster: https://github.com/ai4protein/VenusMine/tree/main/Step4%20MMseqs%20Cluster

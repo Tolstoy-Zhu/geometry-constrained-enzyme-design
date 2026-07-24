@@ -1,0 +1,47 @@
+{
+  "project": "AquaEsterNet-StructMine",
+  "project_version": "0.4.0",
+  "validation_date": "2026-07-24",
+  "status": "development_gate_pass_release_blocked",
+  "automated_tests": {
+    "passed": 65,
+    "failed": 0,
+    "duration_seconds": 15.97,
+    "isolated_external_services": true
+  },
+  "runtime": {
+    "mmseqs2": {
+      "version": "18.8cc5c",
+      "path": "/opt/colabfold/env/bin/mmseqs",
+      "status": "pass"
+    },
+    "ncbi_blast_plus": {
+      "version": "2.17.0",
+      "path": "/opt/ncbi-blast/bin/blastp",
+      "official_md5": "bdec166721de3b55f90a3badc83538e8",
+      "archive_sha256": "3888112d8207831aa47371d93583c601f058f88b5db22dc782438b039a3a411b",
+      "status": "pass"
+    }
+  },
+  "doctor_no_network": {
+    "pass": 29,
+    "warn": 3,
+    "fail": 0,
+    "expected_warnings": [
+      "real local NCBI NR snapshot pending consent",
+      "complete-NR server job not exported",
+      "AQUA_NCBI_EMAIL not configured"
+    ]
+  },
+  "scientific_boundaries": {
+    "sequence_only_wase_scope": "not_evaluated_sequence_only",
+    "unvalidated_plm_score_added": false,
+    "natural_nr_self_hit_is_novelty": false
+  },
+  "pending_acceptance": [
+    "real NCBI remote NR hit snapshot",
+    "one real NR candidate through AF2 and structural validation",
+    "complete-NR server or HPC execution and verified import"
+  ],
+  "release_allowed": false
+}

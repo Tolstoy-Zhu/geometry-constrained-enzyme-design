@@ -31,6 +31,8 @@ FOLDSEEK_FIELDS: List[str] = [
     "tlen",
     "qcov",
     "tcov",
+    "tseq",
+    "theader",
 ]
 
 

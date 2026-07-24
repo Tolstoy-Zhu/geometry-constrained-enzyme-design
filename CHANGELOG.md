@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### v0.4 NR Integration
+
+- Added a separate NCBI NR service layer for Foldseek target-sequence seed export, two-iteration MMseqs2 search, accession and sequence-hash deduplication, 50% identity clustering, direct 8HFW catalytic-site mapping, and AF2-ready queues.
+- Added real NCBI remote hit-snapshot construction with contact email, explicit per-request transfer consent, serial polling, bounded retries, disk cache, batched sequence retrieval, and `nr_remote_snapshot` provenance.
+- Added credential-free complete-NR Bash, Slurm, and PBS job packages, explicit `mmseqs databases NR` management, resource preflight, result manifests, SHA-256 files, safe ZIP import, and `full_nr` scope validation.
+- Added independent NR nearest-neighbor novelty audit. A natural NR sequence's own 100% hit is explicitly not novelty evidence.
+- Added `nr-demo-build`, `nr-expand`, `nr-export-job`, `nr-import-job`, and `nr-novelty`; `predict` and `predict-and-mine` now accept `--nr-run`.
+- Added the bilingual **NR Mining** web view, background local/server tasks, evidence filters, exports, and NR-to-AF2 handoff.
+- Added a stage-by-stage NR processing trace and reproducible 2x-density desktop/mobile UI capture validation with automatic hidden-service shutdown.
+- Added MMseqs2 `18.8cc5c` and NCBI BLAST+ `2.17.0` diagnostics and runtime provenance.
+- Kept all sequence-only candidates at `WASE not evaluated` until AF2 and Foldseek/TM-align validation.
+- Hardened complete-NR imports against Windows/POSIX path traversal, symlinks, duplicate members, archive expansion, unsafe run IDs, checksum mismatch, and inconsistent database manifests.
+- Ensured direct 8HFW mapping covers every full-NR cluster representative and that local expansion, novelty, export, and import runs write SHA-256 inventories.
+- Added fake-MMseqs2/fake-BLAST CI coverage, full-NR package integrity tests, novelty end-to-end tests, old-manifest compatibility, and bidirectional NR-to-AF2 lineage tests.
+- Formal `v0.4.0` merge, tag, and Release remain blocked until a complete-NR server result is imported and passes acceptance.
+
 ### Persistent Local Web Service
 
 - Replaced the terminal-bound Windows launcher with a fixed-port background watchdog at `127.0.0.1:8501`.

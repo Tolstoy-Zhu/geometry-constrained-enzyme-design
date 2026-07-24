@@ -1,6 +1,7 @@
 """Validated public data contracts for AquaEsterNet-StructMine."""
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -11,6 +12,18 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 RunStatus = Literal["created", "running", "completed", "failed", "cancelled"]
 EventState = Literal["started", "running", "completed", "warning", "failed", "cancelled"]
 PredictionPreset = Literal["quick", "standard", "high"]
+NrDatabaseScope = Literal["nr_remote_snapshot", "full_nr", "custom_mmseqs"]
+NrExecutionMode = Literal["local", "job_bundle", "import"]
+RUN_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _validate_run_identifier(value: str | None, label: str) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not RUN_IDENTIFIER.fullmatch(cleaned):
+        raise ValueError(f"{label} contains unsupported path or identifier characters")
+    return cleaned
 
 
 class QueryConfig(BaseModel):
@@ -110,7 +123,7 @@ class CandidateRecord(BaseModel):
 
 class RunManifest(BaseModel):
     run_id: str
-    project_version: str = "0.3.0"
+    project_version: str = "0.4.0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
@@ -134,6 +147,7 @@ class RunManifest(BaseModel):
     raw_hit_count: int = 0
     filtered_hit_count: int = 0
     annotated_hit_count: int = 0
+    child_nr_run_ids: list[str] = Field(default_factory=list)
 
 
 class RunSummary(BaseModel):
@@ -156,6 +170,7 @@ class PredictionRequest(BaseModel):
     fasta_path: str | None = None
     fasta_text: str | None = None
     candidate_run_id: str | None = None
+    candidate_nr_run_id: str | None = None
     accession: str | None = None
     preset: PredictionPreset = "standard"
     use_templates: bool = False
@@ -164,6 +179,7 @@ class PredictionRequest(BaseModel):
     output_root: str = "results/predictions"
     msa_cache_dir: str = ".cache/colabfold_msa"
     candidate_run_root: str = "results/runs"
+    candidate_nr_run_root: str = "results/nr_runs"
     wsl_distribution: str = "Ubuntu-Foldseek"
     colabfold_executable: str = "/opt/colabfold/bin/colabfold_batch"
     runtime_backend: Literal["wsl", "native"] = "wsl"
@@ -172,10 +188,15 @@ class PredictionRequest(BaseModel):
     @model_validator(mode="after")
     def validate_input_source(self) -> "PredictionRequest":
         direct_sources = sum(bool(value) for value in (self.fasta_path, self.fasta_text))
-        candidate_requested = bool(self.candidate_run_id or self.accession)
-        if candidate_requested and not (self.candidate_run_id and self.accession):
-            raise ValueError("candidate_run_id and accession must be provided together")
-        if direct_sources + int(candidate_requested) != 1:
+        structure_candidate = bool(self.candidate_run_id)
+        nr_candidate = bool(self.candidate_nr_run_id)
+        if structure_candidate and nr_candidate:
+            raise ValueError("candidate_run_id and candidate_nr_run_id are mutually exclusive")
+        if (structure_candidate or nr_candidate) and not self.accession:
+            raise ValueError("accession is required with a candidate run")
+        if self.accession and not (structure_candidate or nr_candidate):
+            raise ValueError("accession requires candidate_run_id or candidate_nr_run_id")
+        if direct_sources + int(structure_candidate or nr_candidate) != 1:
             raise ValueError("provide exactly one FASTA source or one candidate run/accession pair")
         return self
 
@@ -206,7 +227,7 @@ class PredictionModelRecord(BaseModel):
 
 class PredictionManifest(BaseModel):
     prediction_id: str
-    project_version: str = "0.3.0"
+    project_version: str = "0.4.0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
@@ -217,6 +238,7 @@ class PredictionManifest(BaseModel):
     input_fasta_path: str = ""
     source_type: str = "fasta"
     source_run_id: str = ""
+    source_nr_run_id: str = ""
     source_accession: str = ""
     preset: PredictionPreset = "standard"
     parameters: dict[str, Any] = Field(default_factory=dict)
@@ -255,3 +277,148 @@ class PredictionSummary(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class NrExpansionRequest(BaseModel):
+    """Validated request for sequence-space expansion from a structure run."""
+
+    source_run_id: str
+    config_path: str = "configs/nr_local_demo.yaml"
+    nr_run_id: str | None = None
+    output_root: str = "results/nr_runs"
+    structure_run_root: str = "results/runs"
+    database_path: str | None = None
+    database_scope: NrDatabaseScope | None = None
+    execution_mode: NrExecutionMode = "local"
+    scheduler: Literal["shell", "slurm", "pbs"] = "shell"
+
+    @field_validator("source_run_id", "nr_run_id")
+    @classmethod
+    def validate_run_ids(cls, value: str | None, info: Any) -> str | None:
+        return _validate_run_identifier(value, info.field_name)
+
+
+class NrCandidateRecord(BaseModel):
+    """Sequence-only candidate evidence prior to AF2/structure validation."""
+
+    model_config = ConfigDict(extra="allow")
+
+    target: str
+    target_accession: str = ""
+    source_seed: str = ""
+    target_sequence: str = ""
+    evalue: float | None = None
+    bits: float | None = None
+    fident: float | None = None
+    qcov: float | None = None
+    tcov: float | None = None
+    motif_gxsxg_like: bool = False
+    mapped_catalytic_identity_count: int = Field(default=0, ge=0, le=3)
+    catalytic_mapping_status: str = ""
+    sequence_screen_status: str = ""
+    af2_ready: bool = False
+    wase_tier: str = "Not evaluated - structure required"
+    wase_scope: str = "not_evaluated_sequence_only"
+
+
+class NrRunManifest(BaseModel):
+    nr_run_id: str
+    project_version: str = "0.4.0"
+    status: RunStatus = "created"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    parent_structure_run_id: str
+    execution_mode: NrExecutionMode = "local"
+    database_scope: NrDatabaseScope
+    database_name: str = "NCBI nr"
+    database_snapshot: dict[str, Any] = Field(default_factory=dict)
+    config_path: str = ""
+    config_sha256: str = ""
+    config_snapshot: dict[str, Any] = Field(default_factory=dict)
+    paper_preset: str = "hong2025"
+    resolved_parameters: dict[str, Any] = Field(default_factory=dict)
+    software_versions: dict[str, str] = Field(default_factory=dict)
+    seed_count: int = 0
+    raw_hit_count: int = 0
+    deduplicated_hit_count: int = 0
+    representative_count: int = 0
+    candidate_count: int = 0
+    af2_ready_count: int = 0
+    child_prediction_ids: list[str] = Field(default_factory=list)
+    artifacts: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    error: str = ""
+
+
+class NrRunSummary(BaseModel):
+    nr_run_id: str
+    status: RunStatus
+    run_dir: Path
+    manifest_path: Path
+    artifacts: dict[str, Path] = Field(default_factory=dict)
+    candidate_count: int = 0
+    af2_ready_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class NrNoveltyRequest(BaseModel):
+    fasta_path: str | None = None
+    fasta_text: str | None = None
+    novelty_id: str | None = None
+    output_root: str = "results/nr_novelty"
+    backend: Literal["ncbi_remote", "mmseqs"] = "ncbi_remote"
+    database_path: str | None = None
+    database_scope: NrDatabaseScope = "nr_remote_snapshot"
+    max_hits: int = Field(default=20, ge=1, le=5000)
+    evalue: float = Field(default=1e-5, gt=0.0)
+    confirm_ncbi: bool = False
+    contact_email: str | None = None
+    runtime_backend: Literal["auto", "native", "wsl"] = "auto"
+    mmseqs_executable: str = "mmseqs"
+    wsl_distribution: str = "Ubuntu-Foldseek"
+    wsl_executable: str = "/opt/colabfold/env/bin/mmseqs"
+
+    @field_validator("novelty_id")
+    @classmethod
+    def validate_novelty_id(cls, value: str | None) -> str | None:
+        return _validate_run_identifier(value, "novelty_id")
+
+    @model_validator(mode="after")
+    def validate_novelty_input(self) -> "NrNoveltyRequest":
+        if sum(bool(value) for value in (self.fasta_path, self.fasta_text)) != 1:
+            raise ValueError("provide exactly one FASTA source")
+        if self.backend == "ncbi_remote" and not self.confirm_ncbi:
+            raise ValueError("confirm_ncbi is required for the NCBI remote backend")
+        if self.backend == "mmseqs" and not self.database_path:
+            raise ValueError("database_path is required for the MMseqs backend")
+        return self
+
+
+class NrNoveltyManifest(BaseModel):
+    novelty_id: str
+    project_version: str = "0.4.0"
+    status: RunStatus = "created"
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    backend: str
+    database_scope: NrDatabaseScope
+    sequence_name: str = ""
+    sequence_sha256: str = ""
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    database_snapshot: dict[str, Any] = Field(default_factory=dict)
+    software_versions: dict[str, str] = Field(default_factory=dict)
+    nearest_nr_accession: str = ""
+    nearest_nr_identity: float | None = None
+    nearest_nr_coverage: float | None = None
+    nearest_nr_evalue: float | None = None
+    nearest_nr_taxid: str = ""
+    nearest_nr_title: str = ""
+    nearest_nr_organism: str = ""
+    self_hit_warning: str = ""
+    artifacts: dict[str, str] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    error: str = ""

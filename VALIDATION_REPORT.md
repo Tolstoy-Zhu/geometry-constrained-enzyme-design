@@ -1,14 +1,47 @@
-# AquaEsterNet-StructMine v0.3 Validation Report
+# AquaEsterNet-StructMine v0.4 Development Validation Report
 
-Validation date: 2026-07-11
+Validation date: 2026-07-24
 
-Project version: 0.3.0
+Project version: 0.4.0
 
-Overall result: **PASS**
+Development result: **PASS**
+
+Formal release result: **BLOCKED PENDING COMPLETE-NR SERVER ACCEPTANCE**
+
+## v0.4 NR Development Gate
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Existing 43-test baseline remains stable | PASS | Full isolated suite completes without WSL/doctor hang |
+| Expanded automated suite | PASS | `65 passed in 15.97s` |
+| MMseqs2 runtime | PASS | `18.8cc5c` at `/opt/colabfold/env/bin/mmseqs` |
+| NCBI BLAST+ runtime | PASS | `2.17.0` at `/opt/ncbi-blast/bin/blastp` |
+| BLAST+ official archive MD5 | PASS | `bdec166721de3b55f90a3badc83538e8` |
+| BLAST+ locally calculated SHA-256 | PASS | `3888112d8207831aa47371d93583c601f058f88b5db22dc782438b039a3a411b` |
+| Sequence/structure evidence separation | PASS | NR candidates force `wase_scope=not_evaluated_sequence_only` |
+| MMseqs2 paper preset | PASS | 2 iterations, max-seqs 2500, search-type 1, 50% clustering |
+| Accession and sequence deduplication | PASS | Best-hit selection plus complete-sequence SHA-256 |
+| Catalytic mapping | PASS | Separate Ser111/Asp241/His274 positions, identities, and missing reasons |
+| P00520 default sequence screen | PASS in fixed CI fixture | Negative remains `hold` and is not AF2-ready |
+| Complete-NR job export/import | PASS in deterministic fixture | Bash/Slurm/PBS, resource check, safe ZIP, manifest, SHA-256 |
+| NR to AF2 lineage | PASS in deterministic fixture | `source_nr_run_id` and `child_prediction_ids` are bidirectional |
+| Streamlit isolation | PASS | Seven-view UI and remote-auth tests finish without real WSL calls |
+| NR desktop/mobile UI | PASS | Four `2880x1800` desktop captures and one `780x1688` mobile capture; no horizontal overflow; keyboard focus visible |
+| Screenshot service isolation | PASS | Hidden localhost-only Streamlit process stopped after capture; no devtunnel started |
+| Real local NCBI NR hit snapshot | PENDING CONSENT | Contact email and explicit sequence-transfer confirmation required |
+| At least one real NR candidate through AF2 and structure validation | PENDING | Requires the real local snapshot |
+| Complete-NR server/HPC import | PENDING | External server resources and returned result required |
+| v0.4.0 tag and Release | BLOCKED | Allowed only after complete-NR acceptance |
+
+The no-network doctor run against the TM-align benchmark profile reports 29 passes, three expected warnings, and zero failures. The warnings are the missing real NR snapshot, no exported full-NR job yet, and no `AQUA_NCBI_EMAIL`; they are explicit gates rather than silent success.
+
+The NR screenshots use a sanitized deterministic interface fixture and say so visibly. They demonstrate the workbench, processing trace, sequence evidence, complete-NR server package controls, and responsive mobile layout without claiming that a real NCBI query has already run. Image hashes and layout checks are recorded in `docs/validation/v0.4_nr_ui_validation.json`.
+
+## Retained v0.3 Acceptance
 
 ## Scope
 
-This report covers the v0.3 monomer AlphaFold2 workflow, dynamic prediction-to-mining integration, real Foldseek acceptance, complete AlphaFold/Swiss-Prot search, bilingual UI, non-GPU CI path, reproducibility records, and public-package safeguards.
+The retained section below covers the previously accepted v0.3 monomer AlphaFold2 workflow, dynamic prediction-to-mining integration, real Foldseek acceptance, complete AlphaFold/Swiss-Prot search, bilingual UI, non-GPU CI path, reproducibility records, and public-package safeguards.
 
 Existing v0.2 results, databases, the Obsidian vault, and prior delivery archives were preserved. A separate pre-v0.3 snapshot was created before implementation.
 
@@ -24,6 +57,7 @@ Existing v0.2 results, databases, the Obsidian vault, and prior delivery archive
 | JAX | 0.5.3, CUDA device detected |
 | OpenMM | 8.5.2, CUDA platform available |
 | MMseqs2 | 18.8cc5c |
+| NCBI BLAST+ | 2.17.0 |
 | HHsuite | 3.3.0 |
 | Kalign | 2.04 |
 | Foldseek | `7f4b94644d6b210af4530e04a9fdc9e4bb64ea66` |
@@ -35,11 +69,11 @@ The ColabFold result-archive read timeout patch is provenance-recorded with orig
 ## Automated Checks
 
 ```text
-43 passed in 20.67s
-Doctor summary: 31 passed, 0 warnings, 0 failed
+65 passed in 15.97s
+v0.4 no-network doctor: 29 passed, 3 expected warnings, 0 failed
 ```
 
-Tests use isolated temporary directories. The suite covers sequence validation, presets, command construction, Windows/WSL path conversion, cache and retry behavior, semantic MSA failures, process locks, cancellation, parameter provenance, result parsing, catalytic mapping, manifests, prediction-to-mining lineage, chain parsing, TM-align, Foldseek filtering, annotation, WASE-screen, configuration, and output contracts.
+Tests use isolated temporary directories. The suite covers sequence validation, presets, command construction, Windows/WSL path conversion, cache and retry behavior, semantic MSA failures, process locks, cancellation, parameter provenance, result parsing, catalytic mapping, manifests, prediction-to-mining lineage, chain parsing, TM-align, Foldseek filtering, annotation, WASE-screen, configuration, output contracts, MMseqs2, NCBI consent/rate limits/cache, NR deduplication and clustering, complete-NR package integrity, safe import, and NR-to-AF2 lineage.
 
 The current suite additionally covers persistent Windows launch assets, local-only origin binding, remote access-record parsing, bounded PBKDF2 password verification, authenticated Streamlit gate behavior, online entry points, and secret-file exclusion.
 

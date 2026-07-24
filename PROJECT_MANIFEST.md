@@ -1,4 +1,4 @@
-# AquaEsterNet-StructMine v0.3 File Manifest
+# AquaEsterNet-StructMine v0.4 File Manifest
 
 ## User Entry Points
 
@@ -31,9 +31,13 @@
 - `CHANGELOG.md`
 - `THIRD_PARTY_LICENSES.md`
 - `docs/RELEASE_NOTES_CN.md` / `docs/RELEASE_NOTES_EN.md`: bilingual v0.3 release notes.
+- `docs/NR_WORKFLOW_CN.md` / `docs/NR_WORKFLOW_EN.md`: bilingual v0.4 NR local/server workflow and evidence boundaries.
+- `docs/validation/v0.4_development_validation.json`: sanitized v0.4 development-gate evidence.
+- `docs/validation/v0.4_nr_ui_validation.json`: NR desktop/mobile screenshot, layout, focus, checksum, and temporary-service evidence.
 - `docs/validation/v0.3_validation_summary.json`: sanitized acceptance summary.
 - `docs/validation/persistent_online_ui_validation.json`: sanitized local/online service recovery and security evidence.
 - `docs/screenshots/af_prediction_desktop.png` / `af_prediction_mobile.png`: sanitized UI evidence.
+- `docs/screenshots/nr_workflow_01_workbench.png` through `nr_workflow_05_mobile.png`: 2x-density sanitized NR workbench evidence.
 - `requirements.lock.txt`: exact verification-environment dependency lock.
 - `configs/prediction_runtime.lock.yaml`: isolated WSL prediction-runtime lock and source inventory.
 - `configs/colabfold-pip-lock.txt`: exact installed Python/CUDA transitive package versions.
@@ -52,6 +56,9 @@
 - `configs/alphafold_local_python.yaml`: local AlphaFold folder through TM-align.
 - `configs/swissprot_local_python.yaml`: reviewed local structures through TM-align.
 - `configs/ncbi_prostt5.yaml`: NCBI FASTA through ProstT5/Foldseek.
+- `configs/nr_local_demo.yaml`: query-derived NCBI NR hit-snapshot preset.
+- `configs/nr_full_server.yaml`: complete-NR server/HPC preset.
+- `configs/nr_runtime.lock.yaml`: pinned MMseqs2 and NCBI BLAST+ sources and checksums.
 - `configs/ncbi_predicted_structures_python.yaml`: NCBI predicted structures through TM-align.
 - `configs/multidb_template.yaml`: multi-source template.
 
@@ -90,6 +97,10 @@
 - `src/bur01_structmine/structure_search.py`: chain-aware TM-align preview.
 - `src/bur01_structmine/results_parser.py`: Foldseek parsing and structural filters.
 - `src/bur01_structmine/scoring.py`: WASE-screen v0.1.
+- `src/bur01_structmine/mmseqs_runner.py`: native/WSL MMseqs2 commands and execution.
+- `src/bur01_structmine/ncbi_blast.py`: consent-gated, serial, cached NCBI remote BLAST and sequence retrieval.
+- `src/bur01_structmine/nr_pipeline.py`: seed export, search, accession/sequence deduplication, clustering, catalytic mapping, sequence screen, novelty audit, and manifests.
+- `src/bur01_structmine/nr_job_bundle.py`: credential-free complete-NR export and verified import.
 - `src/bur01_structmine/benchmark.py`: fixed benchmark preparation and acceptance.
 - `src/bur01_structmine/doctor.py`: environment diagnostics.
 - `src/bur01_structmine/annotator.py`: cross-database annotation.
@@ -104,6 +115,7 @@
 - `scripts/install_alphafold_params.sh`: resumable verified AlphaFold2 parameter installer.
 - `scripts/run_af2_acceptance.py`: real 8HFW/Q9FVW3 and linked-mining acceptance report.
 - `scripts/validate_ui_playwright.py`: desktop/mobile interaction, focus, chart, and WebGL pixel acceptance.
+- `scripts/validate_nr_ui_playwright.py`: isolated NR fixture, hidden temporary UI, desktop/mobile capture, overflow/focus checks, and verified shutdown.
 - `scripts/run_production_acceptance.ps1`: tests, Foldseek benchmark, Swiss-Prot database, and production run.
 - `scripts/prepare_benchmark.py`
 - `scripts/run_benchmark.py`
@@ -111,12 +123,14 @@
 - `scripts/write_database_manifest.py`
 - `scripts/build_verified_archive.py`
 - `scripts/build_public_release.py`: sanitized v0.3 ZIP and SHA-256 builder.
+- `scripts/install_ncbi_blast_wsl.sh`: pinned and checksum-verified NCBI BLAST+ installer.
+- `scripts/nr_server_postprocess.py`: dependency-free server deduplication, manifest, checksum, and archive helper.
 - `scripts/inspect_enabled_sources.py`
 - Existing download and database-preparation helpers under `scripts/` remain available.
 
 ## Tests
 
-`tests/` covers chain handling, TM-align, overlay generation, filtering, WASE-screen, configuration validation, cache/retry behavior, annotation state, benchmark acceptance, run manifests, cancellation, pinned database validation/extraction, pipeline exports, Streamlit loading, FASTA validation, presets, path conversion, model parsing, MSA consent/cache/retry, GPU locks, and prediction-to-mining lineage. `tests/fixtures/fake_colabfold.py` provides deterministic non-GPU CI execution.
+`tests/` covers chain handling, TM-align, overlay generation, filtering, WASE-screen, configuration validation, cache/retry behavior, annotation state, benchmark acceptance, run manifests, cancellation, pinned database validation/extraction, pipeline exports, Streamlit loading, FASTA validation, presets, path conversion, model parsing, MSA consent/cache/retry, GPU locks, MMseqs2 command construction, NCBI consent and rate limiting, accession/sequence deduplication, clustering, catalytic mapping, complete-NR bundle integrity, safe import, and NR-to-AF2 lineage. `tests/fixtures/fake_colabfold.py` and `tests/fixtures/fake_mmseqs.py` provide deterministic non-GPU/non-NR CI execution.
 
 ## Runtime Data
 
@@ -124,6 +138,8 @@ The following are generated or downloaded and are not required in a source-only 
 
 - `results/runs/`
 - `results/predictions/`
+- `results/nr_runs/`
+- `results/nr_novelty/`
 - `results/ui_prediction_inputs/`
 - `results/ui_configs/`
 - `tmp/`

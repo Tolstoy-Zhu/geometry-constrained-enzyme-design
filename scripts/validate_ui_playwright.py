@@ -262,7 +262,7 @@ def main() -> int:
             browser.close()
 
     report = {
-        "project_version": "0.3.0",
+        "project_version": "0.4.0",
         "passed": True,
         "prediction_id": args.prediction_id,
         "viewports": results,
