@@ -151,6 +151,8 @@ def test_nr_pipeline_fake_executable_end_to_end(
     checksum_path = Path(manifest["artifacts"]["run_checksums"])
     assert checksum_path.is_file()
     for line in checksum_path.read_text(encoding="ascii").splitlines():
+        if not line.strip():
+            continue
         digest, relative = line.split(maxsplit=1)
         assert len(digest) == 64
         assert (summary.run_dir / relative.strip()).is_file()
