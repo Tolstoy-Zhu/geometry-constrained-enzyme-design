@@ -28,6 +28,9 @@ dev = [
 [project.scripts]
 aquaesternet-structmine = "bur01_structmine.cli:main"
 
+[tool.setuptools.package-data]
+bur01_structmine = ["property_viewer.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"

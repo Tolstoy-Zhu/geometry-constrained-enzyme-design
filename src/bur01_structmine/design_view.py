@@ -67,6 +67,10 @@ def render_local_design(candidates, predictions):
         run = choose_run("design_results_run")
         if run:
             render_results(run, predictions)
+            with st.expander(tr("可溶性、热稳定性与底物匹配", "Solubility, thermostability and substrate matching")):
+                if st.toggle(tr("打开性质预测", "Open property predictions"), key="open_native_properties"):
+                    from .property_view import show_properties
+                    show_properties(run)
 
 
 def render_inputs(candidates, temp):

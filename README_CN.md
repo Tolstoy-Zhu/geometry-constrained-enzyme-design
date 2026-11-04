@@ -6,6 +6,8 @@
 
 ## 最快开始
 
+双击 **start_properties_web.bat** 打开性质预测网页。可合并多个设计批次，用本地 SWI、TmProt、EnzRank 将候选与各自亲本比较，并导出可离线交互的结果页。[模型、安装与输入说明](docs/LOCAL_PROPERTY_MODELS_CN.md)
+
 在工作台的“结构”页打开“本地酶序列设计”，可围绕 Bur01 类亲本设计少量替换，比较配体原子对序列偏好的影响，并将候选送入 AF 预测或导入结构复核。安装、算法和结果解释见[本地酶序列设计说明](docs/NATIVE_ENZYME_DESIGN_CN.md)。
 
 双击项目根目录中的：

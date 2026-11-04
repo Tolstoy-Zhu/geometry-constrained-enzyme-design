@@ -1,0 +1,7 @@
+# Isolated Python 3.11 inference environment. The design workbench keeps its own dependencies.
+numpy==1.26.4
+tensorflow==2.15.1
+rdkit==2024.9.6
+torch==2.9.1
+transformers==4.46.3
+peft==0.13.2

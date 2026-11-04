@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AquaEsterNet · 候选性质对照</title>
+    <style>
+      :root {
+        font-size: clamp(14px, 1.02vw, 20px);
+        --navy: #224674;
+        --ink: #223145;
+        --teal: #167c81;
+        --amber: #ad5d26;
+        --muted: #536b80;
+        --line: #cedae5;
+        --paper: #fff;
+        --wash: #f0f5f8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #e9f0f4;
+        color: var(--ink);
+        font-family: "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+      }
+      button,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:focus-visible,
+      select:focus-visible {
+        outline: 3px solid #c77630;
+        outline-offset: 3px;
+      }
+      .shell {
+        max-width: 110rem;
+        margin: auto;
+        min-height: 100vh;
+        background: var(--paper);
+      }
+      .frame {
+        max-width: 91rem;
+        margin: auto;
+        padding: 0 2.4rem;
+      }
+      .mast {
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+      .mast .frame {
+        min-height: 3.6rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .mark {
+        font-family: Calibri, "Segoe UI", Arial, sans-serif;
+        font-size: 1.53rem;
+        color: var(--navy);
+        font-weight: 720;
+        letter-spacing: -0.045em;
+      }
+      .mark i {
+        font-family: Georgia, serif;
+        font-weight: normal;
+      }
+      .station {
+        color: var(--muted);
+        font-size: 0.82rem;
+        letter-spacing: 0.08em;
+      }
+      .intro {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 2rem;
+        padding: 1.7rem 0 1.3rem;
+      }
+      .edition {
+        font:
+          650 0.72rem/1.4 "Segoe UI",
+          Arial,
+          sans-serif;
+        letter-spacing: 0.14em;
+        color: var(--teal);
+      }
+      h1 {
+        font-size: 2.2rem;
+        line-height: 1.2;
+        color: var(--navy);
+        letter-spacing: 0.015em;
+        margin: 0.32rem 0 0.5rem;
+      }
+      p {
+        margin: 0;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.98rem;
+      }
+      .sample-count {
+        color: var(--navy);
+        display: flex;
+        gap: 1.4rem;
+        white-space: nowrap;
+      }
+      .sample-count b {
+        font:
+          650 1.65rem/1.2 Calibri,
+          Arial,
+          sans-serif;
+        margin-right: 0.27rem;
+      }
+      .sample-count span {
+        font-size: 0.83rem;
+      }
+      .toolbar {
+        border-top: 2px solid var(--navy);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        min-height: 3.75rem;
+      }
+      .modes,
+      .navi {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+      .modes button,
+      .chip,
+      .pager button {
+        background: #fff;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 0.46rem 0.8rem;
+        color: var(--muted);
+      }
+      .modes button {
+        font-weight: 650;
+        font-size: 0.99rem;
+      }
+      .modes button[aria-pressed="true"] {
+        color: white;
+        background: var(--navy);
+      }
+      .chip {
+        border-color: var(--line);
+        font-size: 0.82rem;
+        padding: 0.33rem 0.63rem;
+      }
+      .chip[aria-pressed="true"] {
+        color: #115e62;
+        border-color: var(--teal);
+        background: #e5f2f0;
+      }
+      select {
+        max-width: 100%;
+        border: 1px solid var(--line);
+        background: white;
+        border-radius: 4px;
+        padding: 0.3rem 0.45rem;
+        color: var(--ink);
+      }
+      .board {
+        display: grid;
+        grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.88fr);
+        gap: 1.8rem;
+        margin: 1.3rem 0 1rem;
+      }
+      .plot {
+        min-width: 0;
+      }
+      .heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.6rem;
+      }
+      .heading h2,
+      .detail h2 {
+        margin: 0;
+        font-size: 1.17rem;
+        color: var(--navy);
+      }
+      .axis-caption {
+        font-size: 0.79rem;
+        color: var(--muted);
+        margin: 0.3rem 0;
+      }
+      .chem {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+      .chem[hidden] {
+        display: none;
+      }
+      .axis,
+      .plot-row {
+        display: grid;
+        grid-template-columns: minmax(7.4rem, 1.1fr) minmax(7rem, 2.35fr) 4.4rem;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .axis {
+        height: 2.35rem;
+        font:
+          600 0.75rem/1.2 "Segoe UI",
+          "Microsoft YaHei",
+          sans-serif;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+      }
+      .axis div:last-child {
+        text-align: right;
+      }
+      .axis-track {
+        position: relative;
+        height: 1rem;
+      }
+      .axis-track .origin {
+        position: absolute;
+        left: var(--zero);
+        transform: translateX(-50%);
+        white-space: nowrap;
+        color: var(--amber);
+      }
+      .plot-row {
+        width: 100%;
+        height: 2.55rem;
+        background: white;
+        border: 0;
+        border-bottom: 1px solid #e3ebf1;
+        text-align: left;
+        color: var(--ink);
+        padding: 0 0.2rem;
+      }
+      .plot-row.active {
+        background: #e9f3f5;
+        box-shadow: inset 0.2rem 0 var(--teal);
+      }
+      .plot-row:hover {
+        background: #f0f6f8;
+      }
+      .name {
+        padding-left: 0.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: Calibri, "Microsoft YaHei", Arial, sans-serif;
+        font-size: 1.02rem;
+        font-weight: 650;
+      }
+      .track {
+        position: relative;
+        height: 100%;
+        background: linear-gradient(var(--line), var(--line)) 0 50%/100% 1px no-repeat;
+      }
+      .track:before {
+        content: "";
+        position: absolute;
+        left: var(--zero);
+        top: 0;
+        bottom: 0;
+        border-left: 1px dashed #b7794f;
+      }
+      .segment {
+        position: absolute;
+        left: var(--left);
+        width: var(--width);
+        top: calc(50% - 2px);
+        border-top: 3px solid var(--c);
+      }
+      .dot {
+        position: absolute;
+        left: var(--x);
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 0.58rem;
+        height: 0.58rem;
+        border-radius: 50%;
+        background: var(--c);
+      }
+      .val {
+        padding-right: 0.2rem;
+        text-align: right;
+        font:
+          600 0.97rem Calibri,
+          Arial,
+          sans-serif;
+        font-variant-numeric: tabular-nums;
+      }
+      .legend,
+      .pager,
+      .foot {
+        color: var(--muted);
+        font-size: 0.77rem;
+      }
+      .legend {
+        display: flex;
+        gap: 1.1rem;
+        align-items: center;
+        margin-top: 0.7rem;
+      }
+      .legend i {
+        height: 0.55rem;
+        width: 0.55rem;
+        display: inline-block;
+        vertical-align: baseline;
+        margin-right: 0.2rem;
+        border-radius: 50%;
+      }
+      .pager {
+        margin-top: 0.5rem;
+        display: flex;
+        gap: 0.65rem;
+        align-items: center;
+        justify-content: flex-end;
+      }
+      .pager button {
+        border: 1px solid var(--line);
+        padding: 0.22rem 0.55rem;
+      }
+      .pager button:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .detail {
+        align-self: start;
+        background: #f1f6f8;
+        border-top: 0.24rem solid var(--teal);
+        padding: 1rem 1.15rem 0.8rem;
+      }
+      .detail-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.45rem;
+      }
+      .source {
+        color: var(--teal);
+        font-size: 0.76rem;
+        font-weight: 650;
+      }
+      .mut {
+        font:
+          650 1.93rem/1.2 Calibri,
+          Arial,
+          sans-serif;
+        color: var(--navy);
+        margin: 0.68rem 0 0.22rem;
+        overflow-wrap: anywhere;
+      }
+      .serial {
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .detail table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 0.75rem 0 0.65rem;
+      }
+      .detail th,
+      .detail td {
+        padding: 0.55rem 0.16rem;
+        border-bottom: 1px solid var(--line);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .detail th:first-child,
+      .detail td:first-child {
+        text-align: left;
+      }
+      .detail th {
+        font-size: 0.74rem;
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .detail td {
+        font-size: 0.92rem;
+      }
+      .detail tr.selected td {
+        color: var(--teal);
+        font-weight: bold;
+      }
+      .detail select {
+        width: 100%;
+        font:
+          0.8rem Calibri,
+          "Microsoft YaHei",
+          sans-serif;
+      }
+      .unitnote {
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.6;
+        margin-top: 0.38rem;
+      }
+      .foot {
+        border-top: 1px solid var(--line);
+        padding: 0.72rem 0 1rem;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        line-height: 1.55;
+      }
+      .foot strong {
+        color: var(--navy);
+      }
+      .empty {
+        padding: 2rem;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+      }
+      @media (max-width: 850px) {
+        .frame {
+          padding: 0 1rem;
+        }
+        .intro {
+          align-items: start;
+          gap: 0.6rem;
+          flex-wrap: wrap;
+        }
+        .board {
+          grid-template-columns: 1fr;
+        }
+        .toolbar {
+          padding: 0.55rem 0;
+          flex-wrap: wrap;
+        }
+        .foot {
+          display: block;
+        }
+        .sample-count {
+          gap: 0.7rem;
+        }
+        .board {
+          gap: 0.8rem;
+        }
+        .heading {
+          flex-wrap: wrap;
+        }
+        .station {
+          font-size: 0.72rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="mast">
+        <div class="frame">
+          <div class="mark"><i>Aqua</i>EsterNet</div>
+          <div class="station">酶结构设计与性质预测</div>
+        </div>
+      </header>
+      <div class="frame">
+        <section class="intro">
+          <div>
+            <div class="edition">LOCAL MODEL RESULTS</div>
+            <h1 id="title">候选性质对照</h1>
+            <p class="sub">同批计算亲本与设计序列，逐项比较单点和组合替换。</p>
+          </div>
+          <div class="sample-count" id="counts"></div>
+        </section>
+        <div class="toolbar">
+          <div class="modes" aria-label="预测指标">
+            <button type="button" data-mode="swi">可溶表达</button
+            ><button type="button" data-mode="tm">熔解温度</button
+            ><button type="button" data-mode="enz">酶–底物匹配</button>
+          </div>
+          <div class="navi" id="filters" aria-label="按突变数筛选"></div>
+        </div>
+        <div class="board">
+          <section class="plot" aria-label="候选相对亲本的差值">
+            <div class="heading">
+              <div>
+                <h2 id="chart-title"></h2>
+                <p class="axis-caption" id="chart-caption"></p>
+              </div>
+              <div id="chem" class="chem" role="group" aria-label="底物"></div>
+            </div>
+            <div class="axis">
+              <div id="numbering">候选替换</div>
+              <div class="axis-track"><span class="origin">亲本 0</span></div>
+              <div>差值</div>
+            </div>
+            <div id="rows"></div>
+            <div class="legend" id="legend"></div>
+            <div class="pager">
+              <span id="pages"></span><button id="prev" aria-label="上一页">上一页</button
+              ><button id="next" aria-label="下一页">下一页</button>
+            </div>
+          </section>
+          <aside class="detail" aria-label="选中候选的原始预测值">
+            <div class="detail-top">
+              <h2>选中候选</h2>
+              <span class="source" id="source"></span>
+            </div>
+            <div class="mut" id="mut"></div>
+            <p class="serial" id="fasta"></p>
+            <table>
+              <thead>
+                <tr>
+                  <th>预测指标</th>
+                  <th>亲本</th>
+                  <th>候选</th>
+                </tr>
+              </thead>
+              <tbody id="detail-rows"></tbody>
+            </table>
+            <label class="sr-only" for="switch">选择其他候选</label
+            ><select id="switch" aria-label="选择其他候选"></select>
+            <p class="unitnote" id="model-note"></p>
+          </aside>
+        </div>
+        <footer class="foot">
+          <span
+            ><strong>模型预测</strong
+            >　底物配对分数分别计算。水相酯合成速率及合成/水解比需在相应条件下测定。</span
+          ><span>SWI · TmProt · EnzRank</span>
+        </footer>
+      </div>
+    </main>
+    <script type="application/json" id="result-data">
+      __AQUA_PROPERTY_DATA__
+    </script>
+    <script>
+      "use strict";
+      const data = JSON.parse(document.getElementById("result-data").textContent);
+      const $ = (s) => document.querySelector(s),
+        el = (tag, text) => {
+          const n = document.createElement(tag);
+          if (text !== undefined) n.textContent = text;
+          return n;
+        };
+      const groupName = (r) =>
+        data.sources[r.run].design_model === "ligand_mpnn"
+          ? "配体条件设计"
+          : data.sources[r.run].design_model === "protein_mpnn"
+            ? "骨架设计"
+            : r.run;
+      const groupColor = (r) =>
+        data.sources[r.run].design_model === "ligand_mpnn" ? "var(--teal)" : "var(--navy)";
+      const chemicalName = (s) => ({ octanoic_acid: "辛酸", ethanol: "乙醇" })[s] || s;
+      const methods = {
+        swi: ["可溶表达分数差", "SWI / SoDoPE · 大肠杆菌可溶表达倾向，0–1"],
+        tm: ["预测熔解温度差", "TmProt · 由氨基酸序列预测的 Tm，单位 °C"],
+        enz: ["酶–底物匹配分数差", "EnzRank · 指定序列与单个底物的配对分数，0–1"],
+      };
+      const rows = data.rows.map((r, i) => ({ ...r, key: i }));
+      let mode = "swi",
+        substrate = data.substrates[0].name,
+        edits = 0,
+        page = 0,
+        sel = null;
+      const PAGE = 7,
+        value = (r) => (mode === "enz" ? r.enz[substrate] : r[mode]);
+      $("#numbering").textContent = rows.every((r) => r.reference === "8HFW:A")
+        ? "候选替换 · 8HFW A 链"
+        : "候选替换 · 见编号来源";
+      const delta = (r) => {
+        let a = value(r),
+          b = value(data.parents[r.parent]);
+        return a === null || b === null ? null : a - b;
+      };
+      const num = (v, k) => (v === null ? "—" : Number(v).toFixed(k === "tm" ? 2 : 4));
+      const signed = (v, k) => (v === null ? "—" : (v >= 0 ? "+" : "−") + num(Math.abs(v), k));
+      const button = (txt, attrs, fn) => {
+        const n = el("button", txt);
+        n.type = "button";
+        Object.assign(n, attrs);
+        n.onclick = fn;
+        return n;
+      };
+      function pressed(n, yes) {
+        n.setAttribute("aria-pressed", String(yes));
+      }
+      function clickMetric(m) {
+        mode = m;
+        page = 0;
+        sel = null;
+        render();
+      }
+      if (
+        Object.keys(data.parents).length === 1 &&
+        Object.keys(data.parents)[0] === "405bd777924d47a1fa51e2b37d3e75985a6d9be2b262513cd94d039da959a7d5"
+      )
+        $("#title").textContent = "Bur01 候选性质对照";
+      for (const [n, t] of [
+        [rows.length, "条设计"],
+        [Object.keys(data.parents).length, "条亲本"],
+        [data.substrates.length, "种底物"],
+      ]) {
+        const span = el("span");
+        span.append(el("b", n), document.createTextNode(t));
+        $("#counts").append(span);
+      }
+      for (const b of document.querySelectorAll("[data-mode]")) b.onclick = () => clickMetric(b.dataset.mode);
+      for (const e of [0, ...new Set(rows.map((r) => r.edits).sort())]) {
+        const name = { 0: "全部候选", 1: "单突变", 2: "双突变", 3: "三突变" }[e] || e + " 处替换";
+        const b = button(name, { className: "chip" }, () => {
+          edits = e;
+          page = 0;
+          render(true);
+        });
+        b.dataset.edits = e;
+        $("#filters").append(b);
+      }
+      for (const s of data.substrates) {
+        const b = button(chemicalName(s.name), { className: "chip", title: s.input_smiles }, () => {
+          substrate = s.name;
+          page = 0;
+          render(true);
+        });
+        b.dataset.chem = s.name;
+        $("#chem").append(b);
+      }
+      function currentRows() {
+        return rows
+          .filter((r) => !edits || r.edits === edits)
+          .sort((a, b) => (delta(b) ?? -Infinity) - (delta(a) ?? -Infinity) || a.key - b.key);
+      }
+      function render(moveToSelection = false) {
+        const shown = currentRows();
+        if (!shown.some((r) => r.key === sel)) sel = shown[0].key;
+        if (moveToSelection) page = Math.floor(shown.findIndex((r) => r.key === sel) / PAGE);
+        const pages = Math.ceil(shown.length / PAGE);
+        page = Math.min(page, pages - 1);
+        const part = shown.slice(page * PAGE, (page + 1) * PAGE);
+        document.querySelectorAll("[data-mode]").forEach((b) => pressed(b, b.dataset.mode === mode));
+        document.querySelectorAll("[data-edits]").forEach((b) => pressed(b, Number(b.dataset.edits) === edits));
+        $("#chem").hidden = mode !== "enz";
+        document.querySelectorAll("[data-chem]").forEach((b) => pressed(b, b.dataset.chem === substrate));
+        $("#chart-title").textContent =
+          methods[mode][0] + (mode === "enz" ? " · " + chemicalName(substrate) : "");
+        $("#chart-caption").textContent = methods[mode][1] + "　|　按亲本差值降序";
+        const ds = shown.map(delta).filter((v) => v !== null);
+        let lo = Math.min(0, ...ds),
+          hi = Math.max(0, ...ds),
+          pad = (hi - lo || 1) * 0.13;
+        lo -= pad;
+        hi += pad;
+        const scale = (v) => (100 * (v - lo)) / (hi - lo),
+          z = scale(0);
+        $(".plot").style.setProperty("--zero", z + "%");
+        const container = $("#rows");
+        container.replaceChildren();
+        for (const r of part) {
+          const v = delta(r),
+            x = v === null ? z : scale(v);
+          const b = button("", { className: "plot-row" + (r.key === sel ? " active" : "") }, () => {
+            sel = r.key;
+            render();
+          });
+          b.dataset.row = r.key;
+          pressed(b, r.key === sel);
+          b.setAttribute("aria-label", r.mutations + " " + signed(v, mode));
+          b.append(el("span", r.mutations.replaceAll(",", " / ")));
+          b.firstChild.className = "name";
+          const tr = el("span");
+          tr.className = "track";
+          tr.style.setProperty("--c", groupColor(r));
+          tr.style.setProperty("--x", x + "%");
+          tr.style.setProperty("--left", Math.min(z, x) + "%");
+          tr.style.setProperty("--width", Math.abs(z - x) + "%");
+          if (v !== null) {
+            const line = el("i");
+            line.className = "segment";
+            const dot = el("i");
+            dot.className = "dot";
+            tr.append(line, dot);
+          }
+          const vs = el("span", signed(v, mode));
+          vs.className = "val";
+          b.append(tr, vs);
+          container.append(b);
+        }
+        $("#legend").replaceChildren();
+        const groups = new Map(shown.map((r) => [groupName(r), groupColor(r)]));
+        for (const [n, c] of groups) {
+          const k = el("span"),
+            i = el("i");
+          i.style.background = c;
+          k.append(i, document.createTextNode(n));
+          $("#legend").append(k);
+        }
+        $("#pages").textContent =
+          page * PAGE + 1 + "–" + Math.min((page + 1) * PAGE, shown.length) + " / " + shown.length + " 条";
+        $("#prev").disabled = page === 0;
+        $("#next").disabled = page === pages - 1;
+        const selected = rows[sel],
+          parent = data.parents[selected.parent];
+        $("#source").textContent = groupName(selected);
+        $("#mut").textContent = selected.mutations.replaceAll(",", " / ");
+        $("#fasta").textContent =
+          (selected.reference === "8HFW:A" ? "8HFW A 链编号" : "输入序列编号") +
+          "　·　" +
+          selected.length +
+          " aa";
+        $("#fasta").title =
+          "输入序列 " + selected.sequence_mutations + " / 原结构 " + selected.original_mutations;
+        const tb = $("#detail-rows");
+        tb.replaceChildren();
+        const fields = [
+          ["swi", "可溶表达", parent.swi, selected.swi],
+          ["tm", "Tm (°C)", parent.tm, selected.tm],
+          ...data.substrates.map((s) => [
+            "enz:" + s.name,
+            chemicalName(s.name) + "匹配",
+            parent.enz[s.name],
+            selected.enz[s.name],
+          ]),
+        ];
+        for (const [k, t, a, b] of fields) {
+          const tr = el("tr");
+          if (k === (mode === "enz" ? "enz:" + substrate : mode)) tr.className = "selected";
+          tr.append(el("td", t), el("td", num(a, k)), el("td", num(b, k)));
+          tb.append(tr);
+        }
+        const sw = $("#switch");
+        sw.replaceChildren();
+        for (const r of shown) {
+          const o = el("option", r.mutations.replaceAll(",", " / ") + " · " + r.id);
+          o.value = r.key;
+          o.selected = r.key === sel;
+          sw.append(o);
+        }
+        $("#model-note").textContent =
+          mode === "tm"
+            ? "小幅预测温差需用同条件热变性实验核对。"
+            : mode === "enz"
+              ? "原始分数以单个小分子为输入，未给出反应方向。"
+              : "分数由序列组成估计，未纳入表达载体、宿主培养条件或标签。";
+      }
+      $("#switch").onchange = (e) => {
+        sel = Number(e.target.value);
+        render(true);
+      };
+      $("#prev").onclick = () => {
+        page--;
+        sel = currentRows()[page * PAGE].key;
+        render();
+      };
+      $("#next").onclick = () => {
+        page++;
+        sel = currentRows()[page * PAGE].key;
+        render();
+      };
+      render();
+    </script>
+  </body>
+</html>
