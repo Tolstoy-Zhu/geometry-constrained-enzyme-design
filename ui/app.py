@@ -1746,11 +1746,13 @@ with tabs[2]:
         for check in prediction_blockers:
             st.warning(doctor_message(check), icon=":material/warning:")
 
+    native_design_label = "本地设计序列" if st.session_state.language == "zh" else "Local design"
     input_labels = [
         tx("paste_fasta"),
         tx("upload_fasta"),
         tx("candidate_input"),
         tx("nr_candidate_input"),
+        native_design_label,
     ]
     if st.session_state.get("prediction_nr_accession"):
         preferred_mode = tx("nr_candidate_input")
@@ -1781,6 +1783,9 @@ with tabs[2]:
                 prediction_record = parse_single_fasta(fasta_text)
             except SequenceValidationError as exc:
                 input_error = str(exc)
+    elif input_mode == native_design_label:
+        from bur01_structmine.design_view import select_design_for_prediction
+        prediction_record = select_design_for_prediction()
     elif input_mode == tx("upload_fasta"):
         upload = st.file_uploader(tx("fasta_text"), type=["fa", "faa", "fasta", "txt"])
         if upload is not None:
@@ -1968,7 +1973,7 @@ with tabs[2]:
         try:
             prediction_id = make_run_id(f"AF2-{prediction_record.name}")
             fasta_path = None
-            if input_mode in {tx("paste_fasta"), tx("upload_fasta")}:
+            if input_mode in {tx("paste_fasta"), tx("upload_fasta"), native_design_label}:
                 UI_PREDICTION_INPUTS.mkdir(parents=True, exist_ok=True)
                 fasta_path = UI_PREDICTION_INPUTS / f"{prediction_id}.fasta"
                 fasta_path.write_text(prediction_record.to_fasta(), encoding="ascii")
@@ -2185,6 +2190,8 @@ with tabs[3]:
             st.info(tx("prediction_tab"))
 
 with tabs[4]:
+    from bur01_structmine.design_view import render_local_design
+    render_local_design(candidates, predictions)
     st.subheader(tx("overlay"))
     if candidates.empty or not selected_manifest:
         st.info(tx("no_results"))

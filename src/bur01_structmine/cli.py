@@ -259,6 +259,8 @@ def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aquaesternet-structmine", description=PROJECT_NAME)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    from .design_cli import add_design_commands
+    add_design_commands(subparsers)
 
     subparsers.add_parser("check-files", help="Verify the project delivery file set")
     sources = subparsers.add_parser("list-sources", help="Inspect enabled data sources")
@@ -407,6 +409,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {"design", "design-setup", "design-review"}:
+        from .design_cli import dispatch_design
+        return dispatch_design(args)
     if args.command == "check-files":
         return check_files()
     if args.command == "list-sources":

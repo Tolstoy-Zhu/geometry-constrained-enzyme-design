@@ -460,7 +460,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             timeout=30,
             check=False,
         )
-        parameter_path = parameter_result.stdout.strip()
+        parameter_path = parameter_result.stdout.strip() if parameter_result.returncode == 0 else ""
         checks.append(
             _check(
                 "alphafold_parameters",

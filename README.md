@@ -6,6 +6,8 @@ This project is not a black-box predictor of esterification selectivity or S/H r
 
 ## Quick Start
 
+The **Structure** view includes native Bur01-family sequence design. AquaEsterNet selects mutable sites, runs ProteinMPNN or LigandMPNN locally, and attributes reviewed coordinates to an exact design sequence. See the [design and validation guide](docs/NATIVE_ENZYME_DESIGN_CN.md).
+
 Double-click:
 
 ```text

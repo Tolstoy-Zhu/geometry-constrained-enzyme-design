@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+design = ["torch>=2.6,<3"]
 dev = [
     "pytest>=9.1.1,<10",
     "playwright==1.61.0",

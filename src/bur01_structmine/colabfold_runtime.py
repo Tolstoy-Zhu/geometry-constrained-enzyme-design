@@ -66,6 +66,25 @@ PRESETS: dict[PredictionPreset, PredictionParameters] = {
 }
 
 
+def _probe_json(command: list[str]) -> dict[str, Any]:
+    result = subprocess.run(command, capture_output=True, timeout=60, check=False)
+    if result.returncode:
+        raw = result.stderr.strip() or result.stdout.strip()
+        # WSL startup failures can be UTF-16, while Linux programs normally emit UTF-8.
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            encoding = "utf-16"
+        elif b"\x00" in raw:
+            encoding = "utf-16-le"
+        else:
+            encoding = "utf-8"
+        detail = raw.decode(encoding, errors="replace").strip()
+        raise ColabFoldUnavailable(detail or f"Environment probe exited with code {result.returncode}")
+    lines = result.stdout.strip().splitlines()
+    if not lines:
+        raise ColabFoldUnavailable("Environment probe returned no JSON.")
+    return json.loads(lines[-1])
+
+
 def preset_parameters(preset: PredictionPreset) -> PredictionParameters:
     try:
         return PRESETS[preset]
@@ -319,12 +338,9 @@ class ColabFoldRuntime:
         else:
             command = [python, "-c", script]
         try:
-            result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
+            details = _probe_json(command)
         except (OSError, subprocess.SubprocessError) as exc:
             raise ColabFoldUnavailable(str(exc)) from exc
-        if result.returncode != 0:
-            raise ColabFoldUnavailable((result.stderr or result.stdout).strip())
-        details = json.loads(result.stdout.strip().splitlines()[-1])
         if "gpu" not in details.get("platforms", []):
             raise ColabFoldUnavailable("JAX did not detect a GPU; CPU fallback is disabled")
         return details
@@ -342,10 +358,7 @@ class ColabFoldRuntime:
             if self.backend == "wsl"
             else [python, "-c", script]
         )
-        result = subprocess.run(command, capture_output=True, text=True, timeout=60, check=False)
-        if result.returncode != 0:
-            raise ColabFoldUnavailable((result.stderr or result.stdout).strip())
-        return json.loads(result.stdout.strip().splitlines()[-1])
+        return _probe_json(command)
 
     def patch_provenance(self) -> list[dict[str, Any]]:
         if self.backend == "native":
