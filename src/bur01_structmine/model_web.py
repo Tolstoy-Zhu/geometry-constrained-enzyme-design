@@ -225,9 +225,9 @@ def watch_job(key):
     job = next((j for j in jobs().snapshot() if j.key == key), None)
     if not job or job.state not in {"running", "queued"}:
         st.rerun()
-    with st.status(job.message, expanded=True):
-        st.write(job.title)
-        st.caption("本机正在处理任务。可以切换页面，稍后从任务记录打开结果。")
+    indicator = st.status(job.message, state="running", expanded=True)
+    indicator.write(job.title)
+    indicator.caption("本机正在处理任务。可以切换页面，稍后从任务记录打开结果。")
 
 
 def results_page():
