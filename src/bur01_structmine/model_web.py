@@ -76,9 +76,8 @@ def predict_page():
     pending = st.session_state.pop("_web_use_design", None)
     if pending:
         prepare_batch([pending])
-    source = st.segmented_control(
-        "输入来源", ["序列输入", "设计批次"], default="序列输入", required=True, key="web_source"
-    )
+    st.session_state.setdefault("web_source", "序列输入")
+    source = st.segmented_control("输入来源", ["序列输入", "设计批次"], required=True, key="web_source")
     left, right = st.columns([1.42, 1], gap="large")
     text, selected, parent, input_error = "", [], False, None
     with left.container(border=True):
@@ -131,9 +130,9 @@ def predict_page():
             st.error(input_error)
     with right.container(border=True):
         st.subheader("底物与模型")
+        st.session_state.setdefault("web_chem", "\n".join(f"{n}={s}" for n, s in DEFAULT_SUBSTRATES))
         raw = st.text_area(
             "底物名称与 SMILES",
-            value="\n".join(f"{n}={s}" for n, s in DEFAULT_SUBSTRATES),
             height=93,
             key="web_chem",
             help="每行一种底物，按 名称=SMILES 填写。不同分子分别计算。",
