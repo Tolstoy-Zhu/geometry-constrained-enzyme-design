@@ -16,6 +16,7 @@ from statistics import fmean
 from typing import Any, Callable, Sequence
 
 from .models import PredictionModelRecord, PredictionPreset
+from .process_text import capture_process_text, read_process_log, utf8_process_env
 
 ProgressWriter = Callable[[str, str, str, float | None, str | Path | None], None]
 
@@ -67,17 +68,9 @@ PRESETS: dict[PredictionPreset, PredictionParameters] = {
 
 
 def _probe_json(command: list[str]) -> dict[str, Any]:
-    result = subprocess.run(command, capture_output=True, timeout=60, check=False)
+    result = capture_process_text(command, timeout=60)
     if result.returncode:
-        raw = result.stderr.strip() or result.stdout.strip()
-        # WSL startup failures can be UTF-16, while Linux programs normally emit UTF-8.
-        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
-            encoding = "utf-16"
-        elif b"\x00" in raw:
-            encoding = "utf-16-le"
-        else:
-            encoding = "utf-8"
-        detail = raw.decode(encoding, errors="replace").strip()
+        detail = result.stderr.strip() or result.stdout.strip()
         raise ColabFoldUnavailable(detail or f"Environment probe exited with code {result.returncode}")
     lines = result.stdout.strip().splitlines()
     if not lines:
@@ -300,8 +293,7 @@ class ColabFoldRuntime:
                 command,
                 stdout=log_handle,
                 stderr=subprocess.STDOUT,
-                text=True,
-                errors="replace",
+                env=utf8_process_env(),
                 creationflags=creationflags,
             )
             while process.poll() is None:
@@ -316,7 +308,7 @@ class ColabFoldRuntime:
         pid_path.unlink(missing_ok=True)
         if return_code == 0:
             return
-        tail = log_path.read_text(encoding="utf-8", errors="replace")[-20000:]
+        tail = read_process_log(log_path)[-20000:]
         lowered = tail.lower()
         if any(marker in lowered for marker in ("resource_exhausted", "out of memory", "cuda_error_out_of_memory", "failed to allocate")):
             raise GpuOutOfMemoryError(
@@ -363,7 +355,7 @@ class ColabFoldRuntime:
     def patch_provenance(self) -> list[dict[str, Any]]:
         if self.backend == "native":
             return []
-        result = subprocess.run(
+        result = capture_process_text(
             [
                 "wsl.exe",
                 "-d",
@@ -372,11 +364,7 @@ class ColabFoldRuntime:
                 "cat",
                 "/opt/colabfold/COLABFOLD_PATCH_PROVENANCE.json",
             ],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30,
-            check=False,
         )
         if result.returncode != 0:
             return []
@@ -397,7 +385,7 @@ class ColabFoldRuntime:
             "files=sorted(pathlib.Path('/opt/colabfold/data').rglob('params_model_*.npz')); "
             "print(json.dumps({p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}))"
         )
-        result = subprocess.run(
+        result = capture_process_text(
             [
                 "wsl.exe",
                 "-d",
@@ -407,11 +395,7 @@ class ColabFoldRuntime:
                 "-c",
                 script,
             ],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30 * 60,
-            check=False,
         )
         if result.returncode != 0:
             raise ColabFoldUnavailable((result.stderr or result.stdout).strip())
@@ -422,7 +406,7 @@ class ColabFoldRuntime:
             return {"source_url": "test-only", "archive_sha256": "test-only"}
         if self.backend != "wsl":
             return {}
-        result = subprocess.run(
+        result = capture_process_text(
             [
                 "wsl.exe",
                 "-d",
@@ -431,11 +415,7 @@ class ColabFoldRuntime:
                 "cat",
                 "/opt/colabfold/ALPHAFOLD_PARAMETER_PROVENANCE.json",
             ],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30,
-            check=False,
         )
         if result.returncode != 0:
             return {}

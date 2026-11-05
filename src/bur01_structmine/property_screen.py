@@ -23,6 +23,7 @@ from .property_assets import (
     verify_assets,
 )
 from .property_inference import CANONICAL, predict_solubility, swi_parameters
+from .process_text import utf8_process_env
 from .run_context import make_run_id
 from .structure_search import load_ca_trace
 
@@ -152,7 +153,7 @@ def run_worker(mode, request, folder, assets, device):
         raise ValueError("Property runtime not installed. Run properties-setup --install-runtime.")
     path = folder / (mode + ".json")
     env = dict(
-        os.environ,
+        utf8_process_env(),
         HF_HUB_OFFLINE="1",
         TRANSFORMERS_OFFLINE="1",
         HF_HUB_DISABLE_TELEMETRY="1",

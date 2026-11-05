@@ -19,6 +19,7 @@ from .colabfold_runtime import ColabFoldRuntime, ColabFoldUnavailable, process_e
 from .datasources import load_search_databases
 from .foldseek_runner import FoldseekUnavailable, get_foldseek_version
 from .mmseqs_runner import MmseqsUnavailable, get_mmseqs_version
+from .process_text import capture_process_text
 from .run_context import file_sha256
 from .structure_search import load_ca_trace
 
@@ -68,13 +69,9 @@ def _feature_state(feature_name: str) -> tuple[str, str]:
     if os.name != "nt":
         return "not-applicable", "Windows optional features are not used on this platform"
     try:
-        result = subprocess.run(
+        result = capture_process_text(
             ["dism.exe", "/Online", "/English", "/Get-FeatureInfo", f"/FeatureName:{feature_name}"],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30,
-            check=False,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         return "unknown", f"{type(exc).__name__}: {exc}"
@@ -291,25 +288,26 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
     )
     configured_distro = str(cfg.get("foldseek", {}).get("wsl_distribution", "Ubuntu-Foldseek"))
     distributions: list[str] = []
+    list_error = ""
     if wsl_path:
         try:
-            result = subprocess.run(
+            result = capture_process_text(
                 ["wsl.exe", "--list", "--quiet"],
-                capture_output=True,
-                text=True,
-                errors="replace",
                 timeout=30,
-                check=False,
             )
-            distributions = [line.replace("\x00", "").strip() for line in result.stdout.splitlines() if line.replace("\x00", "").strip()]
-        except (OSError, subprocess.SubprocessError):
-            distributions = []
+            if result.returncode == 0:
+                distributions = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            else:
+                list_error = (result.stderr or result.stdout).strip() or f"wsl --list exited with {result.returncode}"
+        except (OSError, subprocess.SubprocessError) as exc:
+            list_error = str(exc)
     checks.append(
         _check(
             "wsl_distribution",
             "wsl",
             "pass" if configured_distro in distributions else ("fail" if needs_foldseek else "warn"),
-            f"{configured_distro}: {'installed' if configured_distro in distributions else 'not installed'}",
+            list_error or f"{configured_distro}: {'installed' if configured_distro in distributions else 'not installed'}",
+            distribution=configured_distro,
             installed=distributions,
         )
     )
@@ -342,7 +340,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             )
 
         try:
-            blast_result = subprocess.run(
+            blast_result = capture_process_text(
                 [
                     "wsl.exe",
                     "-d",
@@ -351,11 +349,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
                     "/opt/ncbi-blast/bin/blastp",
                     "-version",
                 ],
-                capture_output=True,
-                text=True,
-                errors="replace",
                 timeout=30,
-                check=False,
             )
             blast_text = (blast_result.stdout or blast_result.stderr).strip()
             checks.append(
@@ -381,7 +375,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             )
 
         try:
-            gpu_result = subprocess.run(
+            gpu_result = capture_process_text(
                 [
                     "wsl.exe",
                     "-d",
@@ -391,19 +385,17 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
                     "--query-gpu=name,memory.total,driver_version,compute_cap",
                     "--format=csv,noheader",
                 ],
-                capture_output=True,
-                text=True,
-                errors="replace",
                 timeout=30,
-                check=False,
             )
             gpu_text = gpu_result.stdout.strip()
+            if gpu_result.returncode:
+                gpu_text = gpu_result.stderr.strip() or gpu_text
             checks.append(
                 _check(
                     "wsl_gpu",
                     "prediction",
                     "pass" if gpu_result.returncode == 0 and gpu_text else "fail",
-                    gpu_text or (gpu_result.stderr.strip() or "WSL GPU was not detected"),
+                    gpu_text or "WSL GPU was not detected",
                 )
             )
         except (OSError, subprocess.SubprocessError) as exc:
@@ -444,7 +436,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         except (ColabFoldUnavailable, OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
             checks.append(_check("colabfold", "prediction", "warn", f"{type(exc).__name__}: {exc}"))
 
-        parameter_result = subprocess.run(
+        parameter_result = capture_process_text(
             [
                 "wsl.exe",
                 "-d",
@@ -454,11 +446,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
                 "-lc",
                 "find /opt/colabfold/data -maxdepth 3 -type f -name 'params_model_*.npz' -print -quit",
             ],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30,
-            check=False,
         )
         parameter_path = parameter_result.stdout.strip() if parameter_result.returncode == 0 else ""
         checks.append(
@@ -469,7 +457,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
                 parameter_path or "AlphaFold2 parameters are not cached yet; ColabFold downloads them on the first prediction",
             )
         )
-        provenance_result = subprocess.run(
+        provenance_result = capture_process_text(
             [
                 "wsl.exe",
                 "-d",
@@ -478,11 +466,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
                 "cat",
                 "/opt/colabfold/ALPHAFOLD_PARAMETER_PROVENANCE.json",
             ],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=30,
-            check=False,
         )
         try:
             parameter_provenance = json.loads(provenance_result.stdout)

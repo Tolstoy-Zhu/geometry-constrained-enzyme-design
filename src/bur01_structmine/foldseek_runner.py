@@ -14,6 +14,7 @@ from typing import Iterable, List, Sequence
 from urllib.parse import urlparse
 
 from .io_utils import ensure_dir
+from .process_text import capture_process_text, utf8_process_env
 
 FOLDSEEK_FIELDS: List[str] = [
     "query",
@@ -47,21 +48,13 @@ class FoldseekUnavailable(RuntimeError):
     pass
 
 
-def _clean_wsl_output(value: str) -> str:
-    return value.replace("\x00", "").strip()
-
-
 def _wsl_foldseek_works(distribution: str, executable: str) -> bool:
     if not shutil.which("wsl.exe"):
         return False
     try:
-        result = subprocess.run(
+        result = capture_process_text(
             ["wsl.exe", "-d", distribution, "--", executable, "version"],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=20,
-            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return False
@@ -108,15 +101,12 @@ def check_foldseek_executable(
 
 def _wsl_path(path: str | Path, runtime: FoldseekRuntime) -> str:
     resolved = str(Path(path).resolve())
-    result = subprocess.run(
+    result = capture_process_text(
         ["wsl.exe", "-d", runtime.wsl_distribution, "--", "wslpath", "-a", resolved],
-        capture_output=True,
-        text=True,
-        errors="replace",
         timeout=20,
         check=True,
     )
-    converted = _clean_wsl_output(result.stdout)
+    converted = result.stdout.strip()
     if not converted:
         raise RuntimeError(f"WSL path conversion returned no value for {resolved}")
     return converted
@@ -133,7 +123,7 @@ def run_command(cmd: Iterable[str], runtime: FoldseekRuntime) -> None:
     else:
         command = [runtime.executable, *command]
     print("[CMD]", " ".join(command))
-    subprocess.run(command, check=True)
+    subprocess.run(command, env=utf8_process_env(), check=True)
 
 
 def _file_sha256(path: Path) -> str:
@@ -178,7 +168,7 @@ def _download_with_curl(url: str, destination: Path) -> None:
         url,
     ]
     print("[CMD]", " ".join(command))
-    subprocess.run(command, check=True)
+    subprocess.run(command, env=utf8_process_env(), check=True)
     partial.replace(destination)
 
 
@@ -256,8 +246,8 @@ def get_foldseek_version(
     command = [runtime.executable, "version"]
     if runtime.backend == "wsl":
         command = ["wsl.exe", "-d", runtime.wsl_distribution, "--", *command]
-    result = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=20, check=True)
-    return _clean_wsl_output(result.stdout or result.stderr)
+    result = capture_process_text(command, timeout=20, check=True)
+    return (result.stdout or result.stderr).strip()
 
 
 def run_easy_search(

@@ -29,6 +29,7 @@ from bur01_structmine.doctor import run_doctor
 from bur01_structmine.http_utils import CachedSession
 from bur01_structmine.models import PredictionManifest, ProjectConfig
 from bur01_structmine.pipeline import reannotate_run
+from bur01_structmine.process_text import read_process_log, utf8_process_env
 from bur01_structmine.prediction import request_prediction_cancel
 from bur01_structmine.prediction_sequence import (
     SequenceValidationError,
@@ -523,13 +524,30 @@ def tx(key: str) -> str:
 
 
 def doctor_message(check: dict[str, Any]) -> str:
-    if st.session_state.get("language", "zh") != "zh":
-        return check["message"]
+    message = check["message"]
+    chinese = st.session_state.get("language", "zh") == "zh"
+    if check.get("status") == "pass":
+        return message
+    if "HCS_E_HYPERV_NOT_INSTALLED" in message:
+        detail = (
+            "WSL2 无法启动，Windows 报告虚拟化不可用。" if chinese
+            else "WSL2 cannot start. Windows reports that virtualization is unavailable."
+        )
+        return f"{detail} (HCS_E_HYPERV_NOT_INSTALLED)"
+    if not chinese:
+        return message
     name = check.get("name", "")
+    if name == "wsl_distribution":
+        distro = check.get("details", {}).get("distribution", "")
+        return f"尚未安装 WSL 发行版 {distro}" if distro and message.endswith(": not installed") else message
+    if name.startswith("windows_feature_") and check.get("details", {}).get("state") != "disabled":
+        return message
+    if name == "mmseqs2" and "MmseqsUnavailable" in message:
+        return "配置的 WSL 环境无法运行 MMseqs2。"
+
     translations = {
         "windows_feature_Microsoft-Windows-Subsystem-Linux": "Windows 的 WSL 功能尚未启用",
         "windows_feature_VirtualMachinePlatform": "Windows 的虚拟机平台功能尚未启用",
-        "wsl_distribution": "尚未安装 Ubuntu-Foldseek 发行版",
         "foldseek": "Foldseek 当前不可用",
         "database_benchmark_v01": "基准数据库尚未创建；Foldseek 就绪后运行时会自动创建",
         "colabfold": "LocalColabFold 尚未就绪",
@@ -617,7 +635,7 @@ def read_nr_events(manifest: dict[str, Any] | None) -> list[dict[str, Any]]:
     if path is None or not path.is_file():
         return []
     events: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in read_process_log(path).splitlines():
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
@@ -632,7 +650,7 @@ def read_prediction_events(prediction_id: str | None) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
     events: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in read_process_log(path).splitlines():
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
@@ -660,7 +678,7 @@ def read_events(run_id: str | None) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     events: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in read_process_log(path).splitlines():
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError:
@@ -748,6 +766,7 @@ def start_run(config_path: Path, run_id: str) -> None:
         cwd=ROOT,
         stdout=log_handle,
         stderr=subprocess.STDOUT,
+        env=utf8_process_env(),
         creationflags=creationflags,
     )
     st.session_state.ui_process = process
@@ -848,6 +867,7 @@ def start_prediction_process(
         cwd=ROOT,
         stdout=log_handle,
         stderr=subprocess.STDOUT,
+        env=utf8_process_env(),
         creationflags=creationflags,
     )
     st.session_state.prediction_process = process
@@ -909,6 +929,7 @@ def start_nr_process(task_id: str, command: list[str]) -> None:
         cwd=ROOT,
         stdout=log_handle,
         stderr=subprocess.STDOUT,
+        env=utf8_process_env(),
         creationflags=creationflags,
     )
     st.session_state.nr_process = process
@@ -974,7 +995,7 @@ def render_nr_progress_fragment() -> None:
     log_path_text = st.session_state.get("nr_process_log", "")
     log_path = Path(log_path_text) if log_path_text else None
     if log_path and log_path.is_file():
-        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        lines = read_process_log(log_path).splitlines()
         st.code("\n".join(lines[-18:]) or tx("running"), language="text")
 
 
@@ -1009,7 +1030,7 @@ def render_progress_fragment() -> None:
     log_text_path = _clean_value(st.session_state.get("ui_log_path", ""))
     log_path = Path(log_text_path) if log_text_path else None
     if log_path and log_path.is_file():
-        log_text = log_path.read_text(encoding="utf-8", errors="replace")
+        log_text = read_process_log(log_path)
         with st.expander(tx("process_log"), expanded=fragment_state == "failed"):
             st.code("\n".join(log_text.splitlines()[-80:]), language="text")
     if fragment_state == "failed":
@@ -1045,7 +1066,7 @@ def render_prediction_progress_fragment() -> None:
     log_path = Path(log_text) if log_text else None
     if log_path and log_path.is_file():
         with st.expander(tx("process_log"), expanded=fragment_state == "failed"):
-            st.code("\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-80:]), language="text")
+            st.code("\n".join(read_process_log(log_path).splitlines()[-80:]), language="text")
     if fragment_state == "failed":
         st.error(f"{tx('failed')} · exit code {exit_code}")
     previous = st.session_state.get("prediction_fragment_state")
@@ -1752,8 +1773,8 @@ with tabs[2]:
     }
     prediction_blockers = [check for check in prediction_checks.values() if check["status"] != "pass"]
     if prediction_blockers:
-        for check in prediction_blockers:
-            st.warning(doctor_message(check), icon=":material/warning:")
+        for message in dict.fromkeys(doctor_message(check) for check in prediction_blockers):
+            st.warning(message, icon=":material/warning:")
 
     native_design_label = "本地设计序列" if st.session_state.language == "zh" else "Local design"
     input_labels = [

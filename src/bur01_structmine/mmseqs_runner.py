@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 from .io_utils import ensure_dir
+from .process_text import capture_process_text, utf8_process_env
 
 
 MMSEQS_FIELDS: tuple[str, ...] = (
@@ -46,21 +47,13 @@ class MmseqsUnavailable(RuntimeError):
     pass
 
 
-def _clean_output(value: str) -> str:
-    return value.replace("\x00", "").strip()
-
-
 def _wsl_works(distribution: str, executable: str) -> bool:
     if not shutil.which("wsl.exe"):
         return False
     try:
-        result = subprocess.run(
+        result = capture_process_text(
             ["wsl.exe", "-d", distribution, "--", executable, "version"],
-            capture_output=True,
-            text=True,
-            errors="replace",
             timeout=20,
-            check=False,
         )
     except (OSError, subprocess.SubprocessError):
         return False
@@ -92,15 +85,12 @@ def resolve_mmseqs_runtime(
 
 def _wsl_path(path: str | Path, runtime: MmseqsRuntime) -> str:
     resolved = str(Path(path).resolve())
-    result = subprocess.run(
+    result = capture_process_text(
         ["wsl.exe", "-d", runtime.wsl_distribution, "--", "wslpath", "-a", resolved],
-        capture_output=True,
-        text=True,
-        errors="replace",
         timeout=20,
         check=True,
     )
-    converted = _clean_output(result.stdout)
+    converted = result.stdout.strip()
     if not converted:
         raise RuntimeError(f"WSL path conversion returned no value for {resolved}")
     return converted
@@ -168,15 +158,9 @@ def run_mmseqs_command(
     command = _command(runtime, args)
     print("[CMD]", " ".join(command))
     if log_path is None:
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            errors="replace",
-            check=False,
-        )
+        result = capture_process_text(command)
         if result.returncode:
-            detail = _clean_output(result.stderr or result.stdout)
+            detail = (result.stderr or result.stdout).strip()
             raise subprocess.CalledProcessError(result.returncode, command, result.stdout, detail)
         return
 
@@ -185,7 +169,7 @@ def run_mmseqs_command(
     with log_path.open("a", encoding="utf-8") as handle:
         handle.write("[CMD] " + " ".join(command) + "\n")
         handle.flush()
-        subprocess.run(command, stdout=handle, stderr=subprocess.STDOUT, check=True)
+        subprocess.run(command, stdout=handle, stderr=subprocess.STDOUT, env=utf8_process_env(), check=True)
 
 
 def get_mmseqs_version(
@@ -195,15 +179,12 @@ def get_mmseqs_version(
     wsl_executable: str = "/opt/colabfold/env/bin/mmseqs",
 ) -> str:
     runtime = resolve_mmseqs_runtime(executable, backend, wsl_distribution, wsl_executable)
-    result = subprocess.run(
+    result = capture_process_text(
         _command(runtime, ["version"]),
-        capture_output=True,
-        text=True,
-        errors="replace",
         timeout=20,
         check=True,
     )
-    return _clean_output(result.stdout or result.stderr)
+    return (result.stdout or result.stderr).strip()
 
 
 def run_easy_search(
