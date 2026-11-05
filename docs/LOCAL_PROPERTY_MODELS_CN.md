@@ -1,6 +1,6 @@
 # AquaEsterNet 本地性质预测
 
-输入一个或多个 AquaDesign 批次，以及分别命名的底物 SMILES。程序从各批次亲本坐标提取序列，核对哈希值、候选标识、突变位置和替换数。相同序列只推理一次，每个候选仍与产生它的亲本比较。模型在本机运行，结果保存在 results/properties 下。
+可提交自己的蛋白序列和底物 SMILES，也可选取一个或多个 AquaDesign 批次。设计批次从亲本坐标提取序列，逐个核对序列、突变位置和替换数。同批相同序列只计算一次。结果保存在 results/properties 下。
 
 | 模型 | 输入与输出 | 解释 |
 |---|---|---|
@@ -15,18 +15,24 @@
 ~~~sh
 python -m bur01_structmine.cli properties-setup --install-runtime
 python -m bur01_structmine.cli properties --run results/designs/my_design --substrate "octanoic_acid=CCCCCCCC(=O)O" --substrate "ethanol=CCO"
-python -m bur01_structmine.cli properties-web
+python -m bur01_structmine.cli properties --fasta my_sequences.fasta --substrate "ethyl_acetate=CCOC(=O)C"
+python -m bur01_structmine.cli web
 ~~~
 
 重复提供 --run 可以合并批次。省略 --substrate 时使用上述两种分子。显式提供 --output 时需选择尚不存在的目录。输出中保留原输入以及 RDKit 规范化的 SMILES，不自动改变质子化状态。可用 AQUA_PROPERTY_MODELS 指定权重目录，用 AQUA_PROPERTY_PYTHON 指向已安装 requirements-properties.txt 的解释器。默认 TmProt 和 EnzRank 均使用 CPU；若已配好 CUDA 版 PyTorch，可用 --device cuda 指定 TmProt 使用显卡。
 
 ## 网页和原始结果
 
-Windows 双击 start_properties_web.bat，或使用 properties-web 启动仅监听本机的网页。在“本地计算设置”选择批次和底物，点击重新计算即可生成新的记录。在完整工作台中，也可以从“结构 → 本地酶序列设计”打开同一套性质预测。结果页支持切换指标和底物、筛选替换数、按候选查看原始分数，也可下载离线网页用于答辩演示。
+Windows 双击 **start_model_web.bat**，在浏览器打开 http://127.0.0.1:8765 。已运行时会打开同一服务。命令行入口为 **web**，旧入口 **properties-web** 也可使用。首次安装结构设计模型的步骤见[本地酶设计说明](NATIVE_ENZYME_DESIGN_CN.md)。
+
+1. **性质预测** 接收粘贴的单条序列、多条 FASTA 或 UTF-8 FASTA 文件。上传文件优先于文本框。每条记录使用独立名称，允许 1–2500 个标准氨基酸，一批最多 100 条。默认按序列给出三项原始预测。若输入亲本及其等长替换体，可勾选“以首条序列为亲本”，或在命令行加 --first-as-parent。FASTA 替换编号从首条序列第 1 位起算。
+2. **结构约束设计** 可选择 8HFW，或上传 PDB、CIF、mmCIF 并指定链。生成候选后点击“用本批候选预测性质”。“设计批次”也能合并已经生成的批次，分别采用各自的结构亲本。装有原两批 Bur01 设计的电脑可一键选择其 24 条候选。
+3. 每行输入一种名称和 SMILES，点击 **提交本地预测**。网页按提交顺序在本机运行任务，关闭浏览器标签后服务进程继续计算。**任务与结果** 自动更新进度，结果地址包含任务编号，可刷新或收藏。重新启动服务后，已保存的报告可以继续打开；排队和计算中的任务需要重新提交。
+4. **结构挖掘与 AF2** 进入原有的结构检索、NR 挖掘、候选和 AF2 工作台。相应模块沿用现有数据库、运行环境检查和远程访问设置。
 
 - protein_predictions.tsv 每条唯一序列一行，包含亲本身份、序列、SHA-256、SWI 指数和可溶表达分数、Tm 及其可评估状态。
 - substrate_predictions.tsv 每个序列–底物对一行，保留输入 SMILES、规范 SMILES 及 EnzRank 原始分数。
-- candidate_comparison.tsv 每个设计批次–候选–底物组合一行。差值按“候选减去对应亲本”计算。亲本序列与 8HFW A 链相同时，按结构记录逐个映射成共同的 8HFW 编号，并保留原始坐标与输入序列编号。其他亲本使用自身的输入序列编号。
+- 存在亲本对照时，candidate_comparison.tsv 每个候选与底物组合一行，差值按“候选减对应亲本”计算。设计批次的亲本与 8HFW A 链相同时，另按结构记录映射到共同的 8HFW 编号。FASTA 任务保存规范化的 input.fasta 以及每条输入名称到序列摘要的对应关系，含有相同序列的不同记录也能分别查看。
 - manifest.json 记录输入和结果哈希、模型源版本、权重指纹、执行设备、运行软件版本、计算数量及底物输入。
 - index.html 包含本批真实模型结果及图表逻辑。可在无网络的浏览器中交互查看；重新推理使用上面的本地工作台。
 

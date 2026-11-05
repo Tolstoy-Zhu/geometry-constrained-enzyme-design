@@ -39,7 +39,10 @@ def show_properties(current_run=None):
         return
     names = [p.name for p in reports]
     chosen = st.selectbox("已保存的性质预测", names, key="property_report")
-    directory = profiles_root() / chosen
+    show_report(profiles_root() / chosen)
+
+
+def show_report(directory):
     html = (directory / "index.html").read_text(encoding="utf-8")
     st.iframe(html, height="content")
     with st.expander("下载结果与模型记录"):
@@ -48,8 +51,10 @@ def show_properties(current_run=None):
             ("protein_predictions.tsv", "序列性质原始表"),
             ("substrate_predictions.tsv", "酶–底物配对表"),
             ("candidate_comparison.tsv", "候选与亲本差值表"),
+            ("input.fasta", "本次提交的序列"),
             ("manifest.json", "模型版本与文件记录"),
         ):
-            st.download_button(
-                label, (directory / name).read_bytes(), file_name=name, key="property_download_" + name
-            )
+            if (directory / name).is_file():
+                st.download_button(
+                    label, (directory / name).read_bytes(), file_name=name, key="property_download_" + name
+                )

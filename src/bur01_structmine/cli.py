@@ -411,7 +411,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.command in {"properties", "properties-setup", "properties-web"}:
+    if args.command in {"properties", "properties-setup", "properties-web", "web"}:
         from .property_cli import dispatch_property
         return dispatch_property(args)
     if args.command in {"design", "design-setup", "design-review"}:

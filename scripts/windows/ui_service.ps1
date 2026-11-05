@@ -159,6 +159,7 @@ function Start-StreamlitProcess {
     $stderrPath = Join-Path $RuntimeRoot "streamlit-$stamp.err.log"
     $env:AQUA_PYTHON = $Python
     $env:AQUA_UI_SERVICE = "1"
+    $env:AQUA_MODEL_HOME = "1"
     $env:AQUA_UI_PORT = [string]$Port
 
     $arguments = @(

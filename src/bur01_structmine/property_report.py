@@ -38,7 +38,13 @@ def report_data(directory):
         }
 
     rows, parents = {}, {}
-    for entry in table("candidate_comparison.tsv"):
+    mode = manifest.get("comparison_mode", "design_parent")
+    if mode == "absolute":
+        for source, info in manifest["source_runs"].items():
+            for record in info["records"]:
+                cid = record["id"]
+                rows[(source, cid)] = dict(id=cid, run=source, **profile(record["sequence_sha256"]))
+    for entry in table("candidate_comparison.tsv") if mode != "absolute" else []:
         run, cid, h, parent = (entry[k] for k in ("run", "candidate_id", "sequence_sha256", "parent_sha256"))
         key = (run, cid)
         if key not in rows:
@@ -56,6 +62,7 @@ def report_data(directory):
         if parent not in parents:
             parents[parent] = profile(parent)
     return {
+        "mode": mode,
         "runId": manifest["run_id"],
         "sources": manifest["source_runs"],
         "rows": list(rows.values()),

@@ -5,6 +5,7 @@ import json
 import os
 import re
 import tempfile
+from importlib.util import find_spec
 from pathlib import Path
 
 import pandas as pd
@@ -73,7 +74,7 @@ def render_local_design(candidates, predictions):
                     show_properties(run)
 
 
-def render_inputs(candidates, temp):
+def render_inputs(candidates, temp, *, compact=False):
     parents = {"8HFW · Bur01": (project_root() / "data/query/Bur01m.pdb", "A", None)}
     for _, row in candidates.iterrows():
         path = row.get("target_structure_path")
@@ -86,7 +87,8 @@ def render_inputs(candidates, temp):
     parent_id = st.selectbox(tr("亲本（含已保存坐标的候选）", "Parent (including candidates with saved coordinates)"),
                              list(parents), key="design_parent")
     parent, chain, sequence = parents[parent_id]
-    upload = st.file_uploader(tr("或上传亲本坐标", "Or upload parent coordinates"), type=["pdb", "cif", "mmcif"], key="design_parent_file")
+    coordinate_box = st.expander("上传其他亲本结构") if compact else st
+    upload = coordinate_box.file_uploader(tr("或上传亲本坐标", "Or upload parent coordinates"), type=["pdb", "cif", "mmcif"], max_upload_size=20, key="design_parent_file")
     if upload:
         parent = upload_file(upload, temp, "parent")
         parent_id, chain, sequence = Path(upload.name).name, "A", None
@@ -99,15 +101,16 @@ def render_inputs(candidates, temp):
         priority = st.selectbox(tr("候选排序", "Candidate ranking"), ["compatibility", "ligand_response"],
                                 format_func=lambda x: tr("骨架相容性", "Structural compatibility") if x == "compatibility" else tr("配体遮蔽对照", "Ligand masking contrast"),
                                 key="design_priority")
-    msa = st.file_uploader(tr("可选同源比对（首条为亲本）", "Optional homolog alignment (parent first)"),
-                           type=["a3m", "fa", "fas", "faa", "fasta"], key="design_msa")
-    fixed = st.text_input(tr("额外保护残基，如 A240、L192（空格或逗号分隔）", "Additional fixed residues, e.g. A240 L192"), key="design_fixed")
+    constraint_box = st.expander("同源比对与额外保护位点") if compact else st
+    msa = constraint_box.file_uploader(tr("可选同源比对（首条为亲本）", "Optional homolog alignment (parent first)"),
+                                       type=["a3m", "fa", "fas", "faa", "fasta"], max_upload_size=20, key="design_msa")
+    fixed = constraint_box.text_input(tr("额外保护残基，如 A240、L192（空格或逗号分隔）", "Additional fixed residues, e.g. A240 L192"), key="design_fixed")
     c1, c2, c3 = st.columns(3)
     sites = c1.number_input(tr("最多设计位点", "Maximum sites"), 1, 48, 16, key="design_sites")
     edits = c2.number_input(tr("每条最多替换", "Maximum edits per design"), 1, 3, 2, key="design_edits")
     count = c3.number_input(tr("候选数量上限", "Candidate limit"), 1, 100, 12, key="design_count")
     required = CHECKPOINTS["ligand_mpnn" if ligands else "protein_mpnn"]
-    ready = (model_dir() / required).is_file() and (model_dir() / "model_utils.py").is_file()
+    ready = find_spec("torch") is not None and (model_dir() / required).is_file() and (model_dir() / "model_utils.py").is_file()
     if not ready:
         st.info(tr("请先在项目环境安装 PyTorch，并运行 aquaesternet-structmine design-setup 下载权重。",
                    "Install PyTorch and run aquaesternet-structmine design-setup in the project environment."))
@@ -119,6 +122,7 @@ def render_inputs(candidates, temp):
                              expected_sequence=sequence)
         st.session_state["design_results_run"] = run.name
         st.success(tr("已保存本次设计。", "Design run saved."))
+        return run
 
 
 def render_results(run, predictions):

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from Bio import SeqIO
 from Bio.PDB import MMCIFParser, PDBParser
+from Bio.PDB.PDBExceptions import PDBConstructionException
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 from .config import project_root
@@ -33,7 +34,10 @@ def sha(data: bytes) -> str:
 
 def ligand_groups(path: Path) -> dict:
     parser = MMCIFParser(QUIET=True) if path.suffix.lower() in {".cif", ".mmcif"} else PDBParser(QUIET=True)
-    model = next(parser.get_structure("parent", str(path)).get_models())
+    try:
+        model = next(parser.get_structure("parent", str(path)).get_models())
+    except (ValueError, StopIteration, IndexError, KeyError, PDBConstructionException) as exc:
+        raise ValueError("无法读取亲本结构的原子记录，请检查 PDB/mmCIF 文件。") from exc
     groups = {}
     for chain in model:
         for r in chain:

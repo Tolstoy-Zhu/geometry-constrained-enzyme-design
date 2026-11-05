@@ -264,10 +264,20 @@ def assemble(sequences, samples, members, substrates, tms, pair_result, params):
 
 
 def profile_runs(directories, substrates=DEFAULT_SUBSTRATES, output=None, *, device="cpu", progress=None):
+    return profile_inputs(collect_runs(directories), substrates, output, device=device, progress=progress)
+
+
+def profile_fasta(text, substrates=DEFAULT_SUBSTRATES, output=None, *, first_as_parent=False, device="cpu", progress=None):
+    from .property_fasta import collect_fasta
+
+    return profile_inputs(collect_fasta(text, first_as_parent), substrates, output, device=device, progress=progress)
+
+
+def profile_inputs(inputs, substrates, output, *, device, progress):
     if device not in {"cpu", "cuda"}:
         raise ValueError("Choose cpu or cuda for TmProt.")
     substrates = parse_substrates([name + "=" + smiles for name, smiles in substrates])
-    sequences, samples, members, sources = collect_runs(directories)
+    sequences, samples, members, sources = inputs
     target = Path(output) if output is not None else profiles_root() / make_run_id("properties")
     if target.exists():
         raise FileExistsError(f"Output already exists: {target}")
@@ -292,7 +302,7 @@ def profile_runs(directories, substrates=DEFAULT_SUBSTRATES, output=None, *, dev
         pairs = run_worker("pairs", request, folder, assets, device)
         status("TmProt · 正在预测熔解温度 / Predicting melting temperatures")
         thermal = run_worker("thermal", request, folder, assets, device)
-        status("SWI · 正在计算可溶表达分数及亲本差值 / Comparing to each parent")
+        status("SWI · 正在计算可溶表达分数 / Scoring soluble expression")
         proteins, pair_table, comparisons = assemble(
             sequences,
             samples,
@@ -307,20 +317,27 @@ def profile_runs(directories, substrates=DEFAULT_SUBSTRATES, output=None, *, dev
             ("substrate_predictions.tsv", pair_table),
             ("candidate_comparison.tsv", comparisons),
         ):
-            write_table(report / filename, rows)
+            if rows:
+                write_table(report / filename, rows)
+        fasta = next((s for s in sources.values() if s.get("input_kind") == "fasta"), None)
+        if fasta:
+            input_fasta = "".join(f">{r['id']}\n{sequences[r['sequence_sha256']]}\n" for r in fasta["records"])
+            (report / "input.fasta").write_text(input_fasta, encoding="utf-8")
         manifest = dict(
             method="aqua_properties_v1",
             run_id=target.name,
             source_runs=sources,
             unique_sequences=len(sequences),
-            design_records=len(members),
+            design_records=0 if fasta else len(members),
+            input_records=len(fasta["records"]) if fasta else len(members),
+            comparison_mode=fasta["comparison"] if fasta else "design_parent",
             pair_count=len(pair_table),
             substrates=pairs["substrates"],
             thermal_device=device,
             versions=thermal["versions"] | pairs["versions"],
             revisions={"SWI": SWI_REV, "TmProt": TM_REV, "ESM2": ESM_REV, "EnzRank": ENZ_REV},
             asset_sha256=ASSETS,
-            output_sha256={f.name: file_hash(f) for f in report.glob("*.tsv")},
+            output_sha256={f.name: file_hash(f) for f in report.iterdir()},
         )
         (report / "manifest.json").write_text(
             json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"

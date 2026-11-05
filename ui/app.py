@@ -514,6 +514,12 @@ if remote_access is not None and not st.session_state.get("remote_authenticated"
     st.stop()
 
 
+if not st.session_state.get("_aqua_local_shell"):
+    from bur01_structmine.model_web import navigate
+    if not navigate(standalone=False):
+        st.stop()
+
+
 def tx(key: str) -> str:
     return TEXT[st.session_state.get("language", "zh")][key]
 

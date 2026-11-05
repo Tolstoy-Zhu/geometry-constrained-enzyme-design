@@ -6,7 +6,7 @@ This project is not a black-box predictor of esterification selectivity or S/H r
 
 ## Quick Start
 
-Run **aquaesternet-structmine properties-web** (or start_properties_web.bat on Windows) to score design cohorts and their parents with local SWI, TmProt and EnzRank models. Each completed run includes a portable interactive result page. [Property models and setup](docs/LOCAL_PROPERTY_MODELS_CN.md)
+Open **start_model_web.bat** on Windows or run **aquaesternet-structmine web**. The browser accepts FASTA and substrate SMILES, generates variants from a parent structure and sends selected designs to local SWI, TmProt and EnzRank inference. The task page shows progress, results and downloads. Structure mining and AF2 are available in the same navigation. [Inputs, installation and model scope](docs/LOCAL_PROPERTY_MODELS_CN.md)
 
 The **Structure** view includes native Bur01-family sequence design. AquaEsterNet selects mutable sites, runs ProteinMPNN or LigandMPNN locally, and attributes reviewed coordinates to an exact design sequence. See the [design and validation guide](docs/NATIVE_ENZYME_DESIGN_CN.md).
 
