@@ -53,25 +53,26 @@ def upload_file(upload, directory, basename):
     return dest
 
 
-def render_local_design(candidates, predictions):
-    with st.expander(tr("本地酶序列设计 · AquaDesign", "Local enzyme sequence design · AquaDesign")):
-        if not st.toggle(tr("打开序列设计工作台", "Open the design workbench"), key="open_aquadesign"):
-            return
-        st.caption(tr("先按 Bur01 催化核心保护位点，再用本地模型比较允许的替换。含配体时可比较保留和遮蔽配体原子的两次推理。",
-                      "Protect the Bur01 catalytic core and score allowed substitutions locally. With a ligand, compare the same model with and without its atom context."))
+def render_local_design(candidates, predictions, open_properties):
+    st.subheader(tr("结构约束序列设计", "Structure-guided sequence design"))
+    st.caption(tr("选择 Bur01、当前挖掘批次中有本地坐标的亲本，或上传结构。设计时保护催化三联体和邻近残基。",
+                  "Select Bur01, a candidate with saved coordinates, or upload a structure. The design protects the catalytic triad and nearby residues."))
+    inputs, outputs = st.columns([1.12, 1])
+    with inputs:
         try:
             with tempfile.TemporaryDirectory() as temp:
-                render_inputs(candidates, temp)
-        except (ValueError, OSError, RuntimeError) as exc:
+                render_inputs(candidates, temp, compact=True)
+        except (ValueError, OSError, RuntimeError, KeyError) as exc:
             st.error(str(exc))
+    with outputs:
         st.markdown(tr("**候选与结构复核**", "**Candidates and structure review**"))
         run = choose_run("design_results_run")
         if run:
+            if st.button(tr("用本批候选预测性质", "Predict properties for this design run"), type="primary",
+                         key="native_profile_design"):
+                st.session_state["_web_use_design"] = run.name
+                open_properties("predict")
             render_results(run, predictions)
-            with st.expander(tr("可溶性、热稳定性与底物匹配", "Solubility, thermostability and substrate matching")):
-                if st.toggle(tr("打开性质预测", "Open property predictions"), key="open_native_properties"):
-                    from .property_view import show_properties
-                    show_properties(run)
 
 
 def render_inputs(candidates, temp, *, compact=False):

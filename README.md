@@ -6,9 +6,9 @@ This project is not a black-box predictor of esterification selectivity or S/H r
 
 ## Quick Start
 
-Open **start_model_web.bat** on Windows or run **aquaesternet-structmine web**. The browser accepts FASTA and substrate SMILES, generates variants from a parent structure and sends selected designs to local SWI, TmProt and EnzRank inference. The task page shows progress, results and downloads. Structure mining and AF2 are available in the same navigation. [Inputs, installation and model scope](docs/LOCAL_PROPERTY_MODELS_CN.md)
+Open **start_ui.bat** (also available as **start_model_web.bat**) or run **aquaesternet-structmine web**. The original StructureMine sidebar and Run tab open at http://127.0.0.1:8501. Send a sequence directly from Candidates or NR Mining to Property prediction, enter substrate SMILES and follow the job in the same tab. [Model inputs and setup](docs/LOCAL_PROPERTY_MODELS_CN.md)
 
-The **Structure** view includes native Bur01-family sequence design. AquaEsterNet selects mutable sites, runs ProteinMPNN or LigandMPNN locally, and attributes reviewed coordinates to an exact design sequence. See the [design and validation guide](docs/NATIVE_ENZYME_DESIGN_CN.md).
+Use **Sequence design** next to Structure to generate Bur01-family variants with ProteinMPNN or LigandMPNN, inspect their substitutions and send a batch to the property models. [Design and validation guide](docs/NATIVE_ENZYME_DESIGN_CN.md)
 
 Double-click:
 
@@ -177,13 +177,15 @@ It reports real qTM, tTM, RMSD, aligned sequences, and residue mappings. Local T
 
 ## Web Workbench
 
-The workbench has seven views:
+The workbench includes the following views.
 
 - **Run**: query, database, thresholds, preflight checks, run, cancel, progress events, and errors.
 - **NR Mining**: local hit-snapshot execution, complete-NR job export/import, sequence evidence, AF2-ready filtering, and AF2 handoff.
 - **AF Prediction**: FASTA upload/paste or candidate input, privacy confirmation, catalytic mapping, prediction or predict-and-mine, model ranking, pLDDT, PAE, and confidence-colored 3D structure.
 - **Candidates**: filters for source, TM-score, coverage, WASE tier, reviewed state, and evidence coverage.
 - **Structure**: TM-align query-candidate overlay with Ser111/Asp241/His274 and mapped target residues.
+- **Sequence design** uses the selected mining run, Bur01 or uploaded coordinates, then hands the resulting batch to the property models.
+- **Property prediction** accepts sequences, design batches and substrate SMILES. Jobs and results includes progress, parent comparisons and downloads.
 - **History**: run status, counts, warnings, errors, and result folders.
 - **Doctor**: WSL, Foldseek, AVX2, databases, network, storage, Python packages, and output permissions.
 

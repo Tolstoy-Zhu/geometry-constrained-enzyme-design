@@ -159,7 +159,6 @@ function Start-StreamlitProcess {
     $stderrPath = Join-Path $RuntimeRoot "streamlit-$stamp.err.log"
     $env:AQUA_PYTHON = $Python
     $env:AQUA_UI_SERVICE = "1"
-    $env:AQUA_MODEL_HOME = "1"
     $env:AQUA_UI_PORT = [string]$Port
 
     $arguments = @(
@@ -168,6 +167,7 @@ function Start-StreamlitProcess {
         "--server.port=$Port",
         "--server.headless=true",
         "--server.fileWatcherType=none",
+        "--server.enableStaticServing=true",
         "--browser.gatherUsageStats=false"
     )
     return Start-Process -FilePath $Python -ArgumentList $arguments -WorkingDirectory $ProjectRoot `
@@ -179,7 +179,7 @@ function Start-Watchdog {
     Remove-Item -LiteralPath $StopPath -Force -ErrorAction SilentlyContinue
 
     $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if ($null -ne $task) {
+    if ($null -ne $task -and $task.State -ne "Disabled") {
         if ($task.State -ne "Running") {
             Start-ScheduledTask -TaskName $TaskName
         }

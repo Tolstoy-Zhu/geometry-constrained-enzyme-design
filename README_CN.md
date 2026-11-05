@@ -6,9 +6,9 @@
 
 ## 最快开始
 
-双击 **start_model_web.bat** 或运行 **aquaesternet-structmine web** 打开 AquaEsterNet 网页。可以上传蛋白序列、填写底物 SMILES，或根据亲本结构生成候选并转入三项本地性质预测。“任务与结果”显示计算进度和原始表格，同一导航可进入结构挖掘和 AF2 模块。[网页用法、安装与模型说明](docs/LOCAL_PROPERTY_MODELS_CN.md)
+双击 **start_ui.bat** 或 **start_model_web.bat**，也可运行 **aquaesternet-structmine web**。默认打开原 StructureMine 工作台的“运行”页，本机地址为 http://127.0.0.1:8501 。在“候选”或“NR挖掘”选择目标，点击“送入性质预测”即可带入完整序列。填写底物 SMILES 提交后，可在同一页查看任务与结果。[网页用法、安装与模型说明](docs/LOCAL_PROPERTY_MODELS_CN.md)
 
-在工作台的“结构”页打开“本地酶序列设计”，可围绕 Bur01 类亲本设计少量替换，比较配体原子对序列偏好的影响，并将候选送入 AF 预测或导入结构复核。安装、算法和结果解释见[本地酶序列设计说明](docs/NATIVE_ENZYME_DESIGN_CN.md)。
+在“结构”旁的“序列设计”页，可选择 Bur01、当前挖掘批次中具有坐标的亲本，或上传亲本结构。生成候选后，可以将整批送入性质预测，也可以复核候选结构。[本地酶序列设计说明](docs/NATIVE_ENZYME_DESIGN_CN.md)
 
 双击项目根目录中的：
 
@@ -215,13 +215,15 @@ python -m bur01_structmine.cli benchmark --engine tmtools
 
 ## 网页工作台
 
-网页包含七个视图：
+工作台包含以下视图。
 
 - **运行**：查询、数据库、阈值、预检、运行、取消、实时事件和错误。
 - **NR挖掘**：本机真实命中子集、完整 NR 作业导出/导入、序列证据筛选和送入 AF2 复核。
 - **AF预测**：粘贴/上传 FASTA 或选择候选，检查隐私确认与催化位点映射，运行预测或预测并挖掘，查看模型排名、pLDDT、PAE 和三维结构。
 - **候选**：按来源、TM-score、覆盖度、WASE 层级、reviewed 状态和证据完整度筛选。
 - **结构**：显示查询与候选的 TM-align 叠合，并突出 Ser111/Asp241/His274 及其映射残基。
+- **序列设计** 使用亲本结构指定设计约束，生成候选并与亲本比较。
+- **性质预测** 接收序列、设计批次与底物 SMILES。“任务与结果”显示进度、原始预测值和下载文件。
 - **历史**：查看每次运行的状态、命中数、警告、错误和结果目录。
 - **诊断**：检查 WSL、Foldseek、AVX2、数据库、网络、磁盘、Python 依赖和写权限。
 

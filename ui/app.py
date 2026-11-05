@@ -21,6 +21,10 @@ import streamlit.components.v1 as components
 import yaml
 
 from bur01_structmine.config import load_config, project_root
+from bur01_structmine.design_view import render_local_design, tr as model_text
+from bur01_structmine.structmine_model_tabs import (
+    candidate_property_button, open_model_tab, show_property_tab, workbench_tabs,
+)
 from bur01_structmine.doctor import run_doctor
 from bur01_structmine.http_utils import CachedSession
 from bur01_structmine.models import PredictionManifest, ProjectConfig
@@ -512,12 +516,6 @@ if remote_access is not None and not st.session_state.get("remote_authenticated"
             time.sleep(min(3.0, float(st.session_state.remote_auth_failures)))
             st.error("访问密码不正确 / Incorrect access password")
     st.stop()
-
-
-if not st.session_state.get("_aqua_local_shell"):
-    from bur01_structmine.model_web import navigate
-    if not navigate(standalone=False):
-        st.stop()
 
 
 def tx(key: str) -> str:
@@ -1258,7 +1256,7 @@ if remote_access is not None:
     service_label += f"  |  {tx('online_mode')}"
 st.caption(f"v0.4.0  |  Structure + NR + Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0{service_label}")
 
-tabs = st.tabs(
+tabs, design_tab, property_tab = workbench_tabs(
     [
         tx("run_tab"),
         tx("nr_tab"),
@@ -1267,7 +1265,8 @@ tabs = st.tabs(
         tx("structure_tab"),
         tx("history_tab"),
         tx("doctor_tab"),
-    ]
+    ],
+    after=tx("structure_tab"),
 )
 
 with tabs[0]:
@@ -1684,7 +1683,7 @@ with tabs[1]:
                 column_config=nr_column_config,
             )
 
-            action_columns = st.columns([2.4, 1, 1])
+            action_columns = st.columns([2.4, 1, 1, 1])
             nr_candidate_labels = [
                 f"{_clean_value(row.get('target_accession')) or _clean_value(row.get('sequence_id'))} | "
                 f"{_clean_value(row.get('organism')) or _clean_value(row.get('target'))}"
@@ -1692,8 +1691,14 @@ with tabs[1]:
             ]
             selected_nr_candidate = action_columns[0].selectbox(
                 tx("nr_accession"),
-                nr_candidate_labels,
+                range(len(filtered_nr)),
+                format_func=nr_candidate_labels.__getitem__,
                 disabled=not nr_candidate_labels,
+            )
+            nr_row = filtered_nr.iloc[selected_nr_candidate] if selected_nr_candidate is not None else {}
+            candidate_property_button(
+                action_columns[2], _clean_value(nr_row.get("target_accession")) or _clean_value(nr_row.get("sequence_id")),
+                _clean_value(nr_row.get("target_sequence")), "nr_to_properties",
             )
             if action_columns[1].button(
                 tx("nr_send_af2"),
@@ -1701,15 +1706,13 @@ with tabs[1]:
                 width="stretch",
                 disabled=not nr_candidate_labels,
             ):
-                selected_index = nr_candidate_labels.index(selected_nr_candidate)
-                selected_row = filtered_nr.iloc[selected_index]
                 st.session_state.prediction_nr_accession = (
-                    _clean_value(selected_row.get("target_accession"))
-                    or _clean_value(selected_row.get("sequence_id"))
+                    _clean_value(nr_row.get("target_accession"))
+                    or _clean_value(nr_row.get("sequence_id"))
                 )
                 st.session_state.prediction_nr_run_id = selected_nr_run_id
                 st.info(tx("prediction_tab"))
-            if action_columns[2].button(
+            if action_columns[3].button(
                 tx("open_folder"),
                 icon=":material/folder_open:",
                 width="stretch",
@@ -2177,27 +2180,40 @@ with tabs[3]:
                     disabled=not path.is_file(),
                 )
 
-        repredict_columns = st.columns([3, 1])
+        repredict_columns = st.columns([3, 1, 1])
         repredict_labels = [
             f"{candidate_accession(row)} · {_clean_value(row.get('target'))}"
-            for _, row in candidates.iterrows()
+            for _, row in filtered.iterrows()
         ]
         repredict_choice = repredict_columns[0].selectbox(
             tx("accession"),
-            repredict_labels,
+            range(len(filtered)),
+            format_func=repredict_labels.__getitem__,
+            disabled=filtered.empty,
             key="candidate_repredict_choice",
         )
+        chosen_row = filtered.iloc[repredict_choice] if repredict_choice is not None else {}
+        candidate_property_button(repredict_columns[2], candidate_accession(chosen_row),
+                                  _clean_value(chosen_row.get("final_protein_sequence")), "candidate_to_properties")
         if repredict_columns[1].button(
             tx("retrigger"),
             icon=":material/model_training:",
             width="stretch",
+            disabled=filtered.empty,
         ):
-            st.session_state.prediction_candidate_accession = repredict_choice.split(" · ", 1)[0]
+            st.session_state.prediction_candidate_accession = candidate_accession(chosen_row)
             st.info(tx("prediction_tab"))
 
+if design_tab.open:
+    with design_tab:
+        render_local_design(candidates, predictions, open_model_tab)
+if property_tab.open:
+    with property_tab:
+        show_property_tab()
+
 with tabs[4]:
-    from bur01_structmine.design_view import render_local_design
-    render_local_design(candidates, predictions)
+    if st.button(model_text("打开序列设计", "Open sequence design"), key="structure_to_design"):
+        open_model_tab("design")
     st.subheader(tx("overlay"))
     if candidates.empty or not selected_manifest:
         st.info(tx("no_results"))

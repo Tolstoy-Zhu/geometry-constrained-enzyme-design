@@ -39,11 +39,14 @@ def add_property_commands(parsers):
     profile.add_argument(
         "--device", choices=["cpu", "cuda"], default="cpu", help="TmProt device; EnzRank uses CPU"
     )
-    web = parsers.add_parser(
-        "web", aliases=["properties-web"], help="Open the full local AquaEsterNet model workbench"
-    )
-    web.add_argument("--port", type=int, default=8765)
-    web.add_argument("--headless", action="store_true", help="Serve the app without opening a browser window")
+    for command, port, app, description in (
+        ("web", 8501, "app.py", "Open StructureMine with mining, sequence design and property prediction tabs"),
+        ("properties-web", 8765, "properties_app.py", "Open the standalone property pages"),
+    ):
+        web = parsers.add_parser(command, help=description)
+        web.add_argument("--port", type=int, default=port)
+        web.add_argument("--headless", action="store_true", help="Serve the app without opening a browser window")
+        web.set_defaults(web_app=app)
 
 
 def existing_workbench(url):
@@ -79,7 +82,7 @@ def dispatch_property(args):
                     "-m",
                     "streamlit",
                     "run",
-                    str(project_root() / "ui/properties_app.py"),
+                    str(project_root() / "ui" / args.web_app),
                     "--server.address",
                     "127.0.0.1",
                     "--server.port",

@@ -7,7 +7,7 @@ from streamlit.testing.v1 import AppTest
 from bur01_structmine.config import project_root
 
 
-def test_streamlit_workbench_loads_seven_views(monkeypatch, tmp_path: Path) -> None:
+def test_streamlit_workbench_opens_with_native_model_tabs(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("AQUA_TEST_MODE", "1")
     monkeypatch.setenv("AQUA_RUN_ROOT", str(tmp_path / "runs"))
     monkeypatch.setenv("AQUA_PREDICTION_ROOT", str(tmp_path / "predictions"))
@@ -22,6 +22,8 @@ def test_streamlit_workbench_loads_seven_views(monkeypatch, tmp_path: Path) -> N
         "AF预测",
         "候选",
         "结构",
+        "序列设计",
+        "性质预测",
         "历史",
         "诊断",
     ]

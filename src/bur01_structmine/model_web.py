@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 
 import pandas as pd
@@ -31,8 +30,6 @@ STYLE = """
  .wordmark i {color:#167c81}
  .aqua-heading h1 {font:650 clamp(21px,2.7vw,34px)/1.3 "Microsoft YaHei","Segoe UI",sans-serif;color:#203746;margin:0;padding:0}
  .aqua-sub {color:#526b79;font-size:1rem;line-height:1.55;margin:9px 0 2px}
- .aqua-models {display:grid;grid-template-columns:5.5rem 1fr;gap:6px 12px;font-size:.92rem;color:#385461;margin:.1rem 0 .65rem}
- .aqua-models dt {font:600 .93rem/1.55 Consolas,monospace;color:#224674}.aqua-models dd {margin:0}
  [data-testid="stButton"] button[kind="primary"],[data-testid="stFormSubmitButton"] button[kind="primary"] {background:#146f76;color:white;border-color:#146f76}
  [data-testid="stTextArea"] textarea {font-family:Consolas,"Microsoft YaHei",monospace;line-height:1.5}
  [data-testid="stMarkdownContainer"] h3 {color:#224674}
@@ -72,10 +69,21 @@ def prepare_batch(names):
 
 def predict_page():
     heading("酶性质预测", "提交蛋白序列和底物，在本机计算可溶表达倾向、熔解温度与酶–底物匹配分数。")
+    prediction_form(go)
+
+
+def prediction_form(open_section):
     available = sorted((p.parent.name for p in design_root().glob("*/manifest.json")), reverse=True)
     pending = st.session_state.pop("_web_use_design", None)
+    fasta = st.session_state.pop("_web_use_sequence", None)
     if pending:
         prepare_batch([pending])
+    elif fasta is not None:
+        st.session_state["web_source"] = "序列输入"
+        st.session_state["web_fasta"] = fasta
+        st.session_state["web_parent"] = False
+        # Replace a previous upload when a mining candidate supplies the sequence.
+        st.session_state["_web_upload_revision"] = st.session_state.get("_web_upload_revision", 0) + 1
     st.session_state.setdefault("web_source", "序列输入")
     source = st.segmented_control("输入来源", ["序列输入", "设计批次"], required=True, key="web_source")
     left, right = st.columns([1.42, 1], gap="large")
@@ -109,7 +117,8 @@ def predict_page():
                 try:
                     sequences, _, _, sources = collect_fasta(text, parent)
                     n = len(sources["FASTA"]["records"])
-                    st.caption(f"已识别 {n} 条记录 · {len(sequences)} 条独立序列")
+                    lengths = f" · {len(next(iter(sequences.values())))} aa" if len(sequences) == 1 else ""
+                    st.caption(f"已识别 {n} 条记录 · {len(sequences)} 条独立序列{lengths}")
                     if any(len(seq) > 510 for seq in sequences.values()):
                         st.info("超过 510 个残基的序列仅计算可溶表达与底物匹配，Tm 留空。")
                 except ValueError as exc:
@@ -125,7 +134,7 @@ def predict_page():
             )
             st.caption("程序从每个批次的坐标读取亲本，核对候选的序列与替换编号。")
             if not available and st.button("先生成候选"):
-                go("design")
+                open_section("design")
         if input_error:
             st.error(input_error)
     with right.container(border=True):
@@ -137,10 +146,9 @@ def predict_page():
             key="web_chem",
             help="每行一种底物，按 名称=SMILES 填写。不同分子分别计算。",
         )
-        st.html(
-            '<dl class="aqua-models"><dt>SWI</dt><dd>大肠杆菌可溶表达倾向</dd>'
-            "<dt>TmProt</dt><dd>蛋白熔解温度（°C）</dd>"
-            "<dt>EnzRank</dt><dd>每种底物的独立配对分数</dd></dl>"
+        st.markdown(
+            "**SWI**　大肠杆菌可溶表达倾向  \n**TmProt**　蛋白熔解温度（°C）  \n"
+            "**EnzRank**　每种底物的独立配对分数"
         )
         ready = runtime_python().is_file() and all((asset_root() / p).is_file() for p in ASSETS)
         if not ready:
@@ -170,7 +178,7 @@ def predict_page():
                 st.error(str(exc))
             else:
                 st.session_state["_web_select_job"] = job
-                go("results")
+                open_section("results")
 
 
 def design_page():
@@ -231,6 +239,10 @@ def watch_job(key):
 
 def results_page():
     heading("任务与结果", "查看本机预测进度，按序列和底物检查模型输出，下载原始表格。")
+    prediction_history(go)
+
+
+def prediction_history(open_section):
     current = {j.key: j for j in jobs().snapshot()}
     saved = sorted(profiles_root().glob("*/manifest.json"), key=lambda p: p.stat().st_mtime_ns, reverse=True)
     reports = {p.parent.name: p.parent for p in saved if (p.parent / "index.html").is_file()}
@@ -238,7 +250,7 @@ def results_page():
     if not keys:
         st.info("还没有预测记录。")
         if st.button("提交第一条序列", type="primary"):
-            go("predict")
+            open_section("predict")
         return
     pending = st.session_state.pop("_web_select_job", None)
     if pending in keys:
@@ -266,35 +278,32 @@ def results_page():
     elif job and job.state == "failed":
         st.error("本次预测失败。 " + job.message)
         if st.button("返回修改输入"):
-            go("predict")
+            open_section("predict")
     elif selected in reports:
         manifest = json.loads((reports[selected] / "manifest.json").read_text(encoding="utf-8"))
         st.caption(f"已完成 · {manifest['unique_sequences']} 条独立序列 · {manifest['pair_count']} 个酶–底物配对")
         show_report(reports[selected])
 
 
-def mining_page():
-    """The original workbench continues in its entrypoint after navigation."""
-
-
-def navigate(*, standalone):
+def keep_property_draft():
     # Keep editable inputs when a user checks another page and returns to the draft.
     for key in ("web_fasta", "web_chem", "web_parent", "web_source", "web_batches", "web_report_choice"):
         if key in st.session_state:
             st.session_state[key] = st.session_state[key]
-    default_models = standalone or os.environ.get("AQUA_MODEL_HOME") == "1"
+
+
+def navigate():
+    keep_property_draft()
     pages = {
-        "predict": st.Page(predict_page, title="性质预测", url_path="predict", default=default_models),
+        "predict": st.Page(predict_page, title="性质预测", url_path="predict", default=True),
         "design": st.Page(design_page, title="结构约束设计", url_path="design"),
         "results": st.Page(results_page, title="任务与结果", url_path="results"),
         "mine": st.Page(
-            "app.py" if standalone else mining_page,
-            title="结构挖掘与 AF2",
+            "app.py",
+            title="StructureMine 工作台",
             url_path="mining",
-            default=not default_models,
         ),
     }
     st.session_state["_aqua_pages"] = pages
     page = st.navigation(list(pages.values()), position="top")
     page.run()
-    return page == pages["mine"]
