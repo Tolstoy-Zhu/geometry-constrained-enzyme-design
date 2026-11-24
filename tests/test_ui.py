@@ -26,6 +26,7 @@ def test_streamlit_workbench_opens_with_native_model_tabs(monkeypatch, tmp_path:
         "性质预测",
         "历史",
         "诊断",
+        "实验评估",
     ]
     assert any(title.value == "AquaEsterNet-StructMine" for title in test.title)
     app_text = app.read_text(encoding="utf-8")

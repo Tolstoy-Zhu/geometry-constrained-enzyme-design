@@ -18,6 +18,9 @@ def test_wase_screen_uses_documented_formula_and_high_priority_gate() -> None:
             "final_protein_sequence": "MAGASAGAA",
             "final_protein_length": 250,
             "mapped_catalytic_identity_count": 3,
+            "mapped_catalytic_ser_motif": "GASAG",
+            "catalytic_ser_his_distance": 3.0,
+            "catalytic_asp_his_distance": 3.0,
             "catalytic_geometry_contacts": 2,
             "uniprot_protein_name": "carboxylesterase",
             "uniprot_is_reviewed": True,
@@ -34,7 +37,8 @@ def test_wase_screen_uses_documented_formula_and_high_priority_gate() -> None:
     assert result["wase_screen_score"] == round(expected_structure + 53, 3)
     assert result["wase_evidence_coverage"] == 100.0
     assert result["wase_tier"] == "High priority"
-    assert result["wase_version"] == "0.1.0"
+    assert result["wase_version"] == "0.2.0"
+    assert result["wase_screen_uncertainty"] is None
     for missing in FORMAL_WASE_MISSING:
         assert missing in result["wase_missing_evidence"]
 
@@ -48,6 +52,8 @@ def test_high_priority_requires_75_percent_evidence_coverage() -> None:
             "tcov": 1.0,
             "rmsd": 0.0,
             "mapped_catalytic_identity_count": 3,
+            "catalytic_ser_his_distance": 3.0,
+            "catalytic_asp_his_distance": 3.0,
             "catalytic_geometry_contacts": 2,
             "target": "candidate",
         }

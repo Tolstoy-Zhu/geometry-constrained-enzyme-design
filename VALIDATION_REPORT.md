@@ -1,4 +1,12 @@
-# AquaEsterNet-StructMine v0.4 Development Validation Report
+# AquaEsterNet-StructMine Validation Report
+
+## Current Local Update: 0.5.0.dev0
+
+See [the bilingual v0.5 validation record](docs/VALIDATION_V05.md) for the latest tests, real Foldseek benchmark, independent Swiss-Prot rescoring and interface checks. Full-NR server acceptance remains pending; this update is not a formal release.
+
+Local validation: **PASS**, 2026-09-21. All 96 isolated tests passed; the real Foldseek fixed benchmark passed; 20 demo states and four bilingual desktop/mobile workbench combinations passed browser checks. Existing Swiss-Prot results were rescored into a separate record without overwriting the source. Test web services and the benchmark WSL instance have been stopped; no project Python service or devtunnel process remained at the final check.
+
+## Historical v0.4 Record
 
 Validation date: 2026-07-24
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -79,10 +80,16 @@ class UniProtClient:
         accession = str(data.get("primaryAccession", ""))
         xrefs = self._extract_crossrefs(data)
         entry_type = str(data.get("entryType", ""))
+        status = entry_type.lower()
+        reviewed = (
+            "False" if re.search(r"\bunreviewed\b", status)
+            else "True" if re.search(r"\breviewed\b", status)
+            else ""
+        )
         return UniProtRecord(
             accession=accession,
             entry_type=entry_type,
-            is_reviewed=str("reviewed" in entry_type.lower()),
+            is_reviewed=reviewed,
             protein_name=self._extract_recommended_name(data),
             organism=(data.get("organism", {}) or {}).get("scientificName", ""),
             gene_names=self._extract_gene_names(data),
@@ -109,6 +116,10 @@ class UniProtClient:
                     if record.accession:
                         self._cache[record.accession] = record
                         observed.add(record.accession)
+                        if record.entry_type.lower() == "inactive":
+                            self.errors[record.accession] = "UniProt entry is inactive; no current sequence available"
+                        elif not record.protein_sequence:
+                            self.errors[record.accession] = "UniProt record has no protein sequence"
             for accession in batch:
                 if accession not in observed:
                     self._cache[accession] = None

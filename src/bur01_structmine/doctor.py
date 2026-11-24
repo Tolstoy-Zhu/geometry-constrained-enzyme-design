@@ -218,7 +218,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
         checks.append(_check("configuration", "project", "pass", "Configuration is valid"))
     except Exception as exc:  # noqa: BLE001 - doctor must aggregate all configuration failures.
         checks.append(_check("configuration", "project", "fail", f"{type(exc).__name__}: {exc}"))
-        return DoctorReport("0.4.0", platform.platform(), checks)
+        return DoctorReport("0.5.0.dev0", platform.platform(), checks)
     configured_sources = load_search_databases(cfg)
     needs_foldseek = any(source.search_engine not in LOCAL_ENGINES for source in configured_sources)
 
@@ -611,7 +611,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             "ncbi_blast_policy": "https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html",
         }
         session = requests.Session()
-        session.headers.update({"User-Agent": "AquaEsterNet-StructMine/0.4.0 doctor"})
+        session.headers.update({"User-Agent": "AquaEsterNet-StructMine/0.5.0.dev0 doctor"})
         for name, url in endpoints.items():
             try:
                 response = session.get(url, timeout=15)
@@ -621,7 +621,7 @@ def run_doctor(config_path: str | Path = "config.yaml", check_network: bool = Tr
             except requests.RequestException as exc:
                 checks.append(_check(f"network_{name}", "network", "warn", f"{type(exc).__name__}: {exc}", url=url))
 
-    return DoctorReport("0.4.0", platform.platform(), checks)
+    return DoctorReport("0.5.0.dev0", platform.platform(), checks)
 
 
 def print_doctor(report: DoctorReport) -> None:

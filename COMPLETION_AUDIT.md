@@ -1,4 +1,14 @@
-# AquaEsterNet-StructMine v0.4 Completion Audit
+# AquaEsterNet-StructMine Completion Audit
+
+## 0.5.0.dev0 Local Update
+
+Implementation: score explanations, independent rescoring, experimental evaluation, coordinate-based ligand/site inspection and read-only Bur01 demonstration. See [current validation](docs/VALIDATION_V05.md) for verified status.
+
+Local status: **IMPLEMENTED AND VALIDATED**, 2026-09-21. Verification includes 96 passing tests, a real Foldseek fixed benchmark, preserved-source Swiss-Prot rescoring, and bilingual desktop/mobile UI checks with isolated-network demonstration. The demo and workbench test services are stopped, with no project Python service, devtunnel or running WSL distribution at the final check. Use `start_demo.bat` only when needed and `stop_demo.bat` after demonstrating.
+
+No GitHub push, public service or new autostart is part of this update. Full-NR acceptance remains pending. Existing results and pre-existing uncommitted files are preserved.
+
+## Historical v0.4 Audit
 
 Audit date: 2026-07-24
 

@@ -37,10 +37,13 @@ from bur01_structmine.prediction_sequence import (
     parse_single_fasta,
     validate_sequence,
 )
-from bur01_structmine.results_parser import parse_pdb_chain
+from bur01_structmine.results_parser import parse_pdb_chain, explain_filter_hits
 from bur01_structmine.remote_auth import load_remote_access, verify_remote_password
 from bur01_structmine.run_context import make_run_id, mark_run_cancelled
 from bur01_structmine.visualization import StructureOverlay, align_structure_overlay
+from bur01_structmine.local_viewer import offline_viewer_html
+from bur01_structmine.rescoring import rescore_run
+from bur01_structmine.workbench_views import experimental_view, score_details, structure_sites_view, tr
 
 ROOT = project_root()
 RUN_ROOT = Path(os.environ.get("AQUA_RUN_ROOT", ROOT / "results" / "runs"))
@@ -487,7 +490,7 @@ st.markdown(
     .cat-residue {{ color:#FFFFFF; background:var(--red); font-weight:600; padding:1px 0; }}
     .muted {{ color:var(--muted); }}
     @media (max-width: 640px) {{
-      .block-container {{ padding: 1rem .75rem 3rem !important; }}
+      .block-container {{ padding: 4rem .75rem 3rem !important; }}
       h1 {{ font-size:1.35rem !important; }}
       [data-baseweb="tab-list"] {{ overflow-x:auto; gap:1rem; }}
       [data-testid="stHorizontalBlock"] {{ gap:.45rem; }}
@@ -712,7 +715,7 @@ def doctor_for(config_path: str, network: bool = False) -> dict[str, Any]:
             )
         ]
         return {
-            "project_version": "0.4.0",
+            "project_version": "0.5.0.dev0",
             "platform": "isolated-test",
             "passed": True,
             "summary": {"pass": len(checks), "warn": 0, "fail": 0},
@@ -1151,7 +1154,7 @@ def render_overlay(overlay: StructureOverlay, catalytic_numbers: tuple[int, ...]
     viewer.setBackgroundColor(COLORS["background"])
     viewer.zoomTo()
     viewer.spin("y", 0.15)
-    components.html(viewer._make_html(), height=540, scrolling=False)
+    components.html(offline_viewer_html(viewer), height=540, scrolling=False)
 
 
 def alignment_html(overlay: StructureOverlay, catalytic_numbers: tuple[int, ...]) -> str:
@@ -1204,7 +1207,7 @@ def render_prediction_structure(path: Path) -> None:
     viewer.setBackgroundColor(COLORS["background"])
     viewer.zoomTo()
     viewer.spin("y", 0.12)
-    components.html(viewer._make_html(), height=540, scrolling=False)
+    components.html(offline_viewer_html(viewer), height=540, scrolling=False)
 
 
 if "language" not in st.session_state:
@@ -1275,7 +1278,7 @@ st.title("AquaEsterNet-StructMine")
 service_label = f"  |  {tx('service_mode')}" if os.environ.get("AQUA_UI_SERVICE") == "1" else ""
 if remote_access is not None:
     service_label += f"  |  {tx('online_mode')}"
-st.caption(f"v0.4.0  |  Structure + NR + Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.1.0{service_label}")
+st.caption(f"v0.5.0.dev0  |  Structure + NR + Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.2.0{service_label}")
 
 tabs, design_tab, property_tab = workbench_tabs(
     [
@@ -1286,6 +1289,7 @@ tabs, design_tab, property_tab = workbench_tabs(
         tx("structure_tab"),
         tx("history_tab"),
         tx("doctor_tab"),
+        tr("实验评估", "Experimental assessment"),
     ],
     after=tx("structure_tab"),
 )
@@ -2093,6 +2097,13 @@ with tabs[2]:
 
 with tabs[3]:
     st.subheader(tx("candidate_table"))
+    if selected_manifest:
+        raw_path = Path(selected_manifest.get("artifacts", {}).get("raw_tsv", "__missing__"))
+        if raw_path.is_file():
+            with st.expander(tr("结构筛选记录与排除原因", "Structural filtering and exclusions")):
+                raw_records = pd.read_csv(raw_path, sep="\t")
+                explained = explain_filter_hits(raw_records, **selected_manifest.get("config_snapshot", {}).get("filter", {}))
+                st.dataframe(explained, hide_index=True, width="stretch")
     if candidates.empty:
         st.info(tx("no_results"))
     else:
@@ -2144,6 +2155,27 @@ with tabs[3]:
             if column in filtered.columns
         ]
         st.dataframe(filtered[display_columns], hide_index=True, width="stretch", height=480)
+        if not filtered.empty:
+            score_target = st.selectbox(tr("评分解释", "Score explanation"), list(range(len(filtered))),
+                                        format_func=lambda i: str(filtered.iloc[i].get("target")), key="candidate_score_detail")
+            score_details(filtered.iloc[score_target])
+        if selected_manifest and st.button(tr("另存新版评分", "Save independent rescore"), icon=":material/calculate:"):
+            try:
+                destination = rescore_run(selected_manifest["_run_dir"])
+                st.session_state.last_rescore_path = str(destination)
+                st.success(tr("已另存，原始结果保留：", "Saved separately; original retained: ") + str(destination))
+            except Exception as exc:
+                st.error(str(exc))
+        if st.session_state.get("last_rescore_path"):
+            with st.expander(tr("新版评分结果", "Rescored results")):
+                rescore_path = Path(st.session_state.last_rescore_path) / "rescored.tsv"
+                updated_scores = pd.read_csv(rescore_path, sep="\t")
+                st.dataframe(updated_scores[["target", "previous_wase_screen_score", "wase_screen_score", "wase_score_delta"]], hide_index=True)
+                choice = st.selectbox(tr("查看新版依据", "Inspect new evidence"), list(range(len(updated_scores))),
+                                      format_func=lambda i: str(updated_scores.iloc[i].target), key="new_score_choice")
+                if len(updated_scores):
+                    score_details(updated_scores.iloc[choice], key="new_score")
+                st.download_button(tr("下载新版评分", "Download rescore"), rescore_path.read_bytes(), "rescored.tsv", icon=":material/download:")
 
         if not filtered.empty and "wase_screen_score" in filtered.columns:
             chart = filtered.copy()
@@ -2235,6 +2267,8 @@ if property_tab.open:
 with tabs[4]:
     if st.button(model_text("打开序列设计", "Open sequence design"), key="structure_to_design"):
         open_model_tab("design")
+    with st.expander(tr("底物与位点", "Substrates and sites")):
+        structure_sites_view(ROOT / "data" / "query" / "Bur01m.pdb")
     st.subheader(tx("overlay"))
     if candidates.empty or not selected_manifest:
         st.info(tx("no_results"))
@@ -2282,6 +2316,9 @@ with tabs[4]:
                 st.markdown(alignment_html(overlay, catalytic_numbers), unsafe_allow_html=True)
             except Exception as exc:  # noqa: BLE001
                 st.error(f"{type(exc).__name__}: {exc}")
+
+with tabs[7]:
+    experimental_view(candidates=candidates, candidate_run_id=selected_run_id or "")
 
 with tabs[5]:
     st.subheader(tx("history"))

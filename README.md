@@ -1,4 +1,14 @@
-# AquaEsterNet-StructMine v0.4
+# AquaEsterNet-StructMine 0.5.0.dev0
+
+## This Update
+
+- WASE-screen 0.2.0 explains four components, requires a mapped Ser-centered motif and separates missing geometry from measured out-of-range distances. Information missingness is not predictive error or a success probability.
+- Experimental assessment imports Excel/CSV, retains raw/error rows, summarizes replicates and groups endpoints, units, conditions and methods before comparing predictions with measurements. Example data are explicitly simulated.
+- Substrates and sites supports PDB/CIF/mmCIF, models/chains, existing ligand coordinates, heavy-atom contacts and insertion-code-safe site exports. It never invents ligand poses.
+- Read-only Bur01 demonstration uses local 3D resources and verified public benchmark records. No WSL, GPU, prediction service, autostart or public tunnel is launched.
+
+[Scoring](docs/SCORING_EN.md) · [Experimental template](docs/EXPERIMENTS_EN.md) · [Demo guide](docs/DEMO_EN.md) · [Validation](docs/VALIDATION_V05.md).
+Complete-NR acceptance remains pending. This development version is local only; no GitHub publication is performed.
 
 **AquaEsterNet-StructMine** is a joint structure-and-sequence mining tool for Bur01-like enzymes. It uses [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A, Foldseek/TM-align structure evidence, NCBI NR and MMseqs2 sequence expansion, local AlphaFold2 validation, cross-database annotation, transparent WASE-screen triage, and traceable manifests.
 
@@ -13,18 +23,27 @@ Use **Sequence design** next to Structure to generate Bur01-family variants with
 Double-click:
 
 ```text
+start_demo.bat
+```
+
+The demo selects an available loopback port and opens a browser. Chinese is the default; English is available. Public structures and verified computation records are distinct from simulated experimental data. Use `stop_demo.bat` to stop it; closing a browser does not stop the server.
+
+For experimental imports and production tasks, use the full workbench:
+
+```text
 start_ui.bat
 ```
 
-The launcher starts a background watchdog and opens the fixed local address `http://127.0.0.1:8501`. The web app no longer depends on an open terminal, and the watchdog restarts Streamlit after an unexpected exit. Chinese is the default language.
+The existing workbench and `stop_ui.bat` remain available. This update does not install legacy autostart tasks. The demo and workbench are stopped independently and require no public tunnel.
 
-To enable automatic startup at Windows logon, double-click:
-
-```text
-install_ui_autostart.bat
+```powershell
+python -m bur01_structmine.cli demo
+python -m bur01_structmine.cli stop-demo
+python -m bur01_structmine.cli evaluate-experiments --input data/examples/simulated/experimental_measurements.csv --output results/evaluations/my_first_evaluation
+python -m bur01_structmine.cli rescore --run-dir results/runs/<run_id>
 ```
 
-After installation, the workbench starts in the background when the current Windows user signs in. It is not exposed to the LAN or public internet. Use `stop_ui.bat` to stop it, `ui_status.bat` to inspect it, and `uninstall_ui_autostart.bat` to remove only the scheduled task without deleting project data.
+Evaluation directories must not exist already. Rescoring and reannotation save independent records, preserving historical results.
 
 Command-line entry points:
 
@@ -275,7 +294,7 @@ Annotation:
 - `final_protein_sequence`, `final_sequence_source`
 - `annotation_status`, `annotation_errors`
 
-## WASE-screen v0.1
+## WASE-screen v0.2.0
 
 WASE-screen is transparent candidate triage. It is not the future formal WASE model and does not predict S/H ratio.
 
@@ -301,7 +320,7 @@ High priority requires all of the following:
 - `min(qTM,tTM) >= 0.5`.
 - Catalytic-core score at least 20.
 
-Outputs include `wase_screen_score`, `wase_evidence_coverage`, `wase_screen_uncertainty`, `wase_tier`, `wase_missing_evidence`, and `wase_version=0.1.0`.
+Outputs include `wase_screen_score`, `wase_evidence_coverage`, `wase_information_missingness`, `wase_tier`, `wase_missing_evidence`, `wase_score_explanation`, and `wase_version=0.2.0`. New `wase_screen_uncertainty` and `wase_prediction_error` values are null; predictive error is not estimated. Historical uncertainty is displayed only as information missingness. Motif credit requires the mapped Ser-centered window; unrelated sequence motifs receive no catalytic credit.
 
 Tunnel specialization, alcohol retention, water exclusion, product escape, fermentation-source priors, and evolutionary evidence remain explicit missing evidence. WASE-screen therefore cannot establish a water-phase esterification mechanism.
 

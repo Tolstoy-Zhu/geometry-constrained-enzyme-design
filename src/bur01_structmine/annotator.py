@@ -87,7 +87,11 @@ def _set_uniprot(rec: Dict[str, Any], records: list[UniProtRecord]) -> None:
     rec["uniprot_organism"] = _join(record.organism for record in records)
     rec["gene_names"] = _join(record.gene_names for record in records)
     rec["uniprot_entry_type"] = _join(record.entry_type for record in records)
-    rec["uniprot_is_reviewed"] = all(record.is_reviewed.lower() == "true" for record in records)
+    review_states = [record.is_reviewed.lower() for record in records]
+    rec["uniprot_is_reviewed"] = (
+        all(state == "true" for state in review_states)
+        if all(state in {"true", "false"} for state in review_states) else ""
+    )
     rec["uniprot_protein_sequence"] = records[0].protein_sequence
     rec["EMBL_accessions"] = _join(record.embl_accessions for record in records)
     rec["RefSeq_accessions"] = _join(record.refseq_accessions for record in records)

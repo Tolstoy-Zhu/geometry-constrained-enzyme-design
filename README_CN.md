@@ -1,4 +1,13 @@
-# AquaEsterNet-StructMine v0.4 中文说明
+# AquaEsterNet-StructMine 0.5.0.dev0 中文说明
+
+## 本轮新增
+
+- WASE-screen 0.2.0：解释四项得分；模体必须对应映射的催化 Ser；缺失原子与几何不合格分别显示。旧版“不确定性”仅兼容读取为信息缺失程度，预测误差尚未估计。
+- “实验评估”：Excel/CSV 导入、原始行和错误定位、重复测量汇总、条件分组、预测误差和排序评估；真实数据由用户导入，示例均为模拟数据。
+- “结构”中的“底物与位点”：PDB/CIF/mmCIF、模型/链/已有配体选择、重原子接触、位点标记与导出；无配体坐标时不生成姿势。
+- Bur01 只读演示：按需启动，本地三维资源，不调用 WSL、GPU、公共预测服务，不增加自启动或公网通道。
+
+文档：[评分说明](docs/SCORING_CN.md) · [实验模板](docs/EXPERIMENTS_CN.md) · [演示指南](docs/DEMO_CN.md) · [本轮验证](docs/VALIDATION_V05.md)。完整 NR 验收仍未完成；本轮不发布正式版本、不推送 GitHub。
 
 **AquaEsterNet-StructMine** 是一个面向 Bur01-like 酶的结构与序列联合挖掘工具。它以 [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A 为查询结构，用 Foldseek/TM-align 发现结构候选，用 NCBI NR 和 MMseqs2 扩增天然序列空间，再通过本地 AlphaFold2、结构复核、跨库注释、WASE-screen 和可追溯清单形成分层证据链。
 
@@ -13,18 +22,29 @@
 双击项目根目录中的：
 
 ```text
+start_demo.bat
+```
+
+演示自动选择空闲的本机端口并打开浏览器。默认中文，可切换英文；只有公开固定结构和已核实的计算记录，实验页明确标注模拟数据。双击 `stop_demo.bat` 停止演示，关闭浏览器本身不会结束服务。
+
+需要导入自己的实验记录或提交计算时，使用完整工作台：
+
+```text
 start_ui.bat
 ```
 
-它会启动后台守护程序并打开固定地址 `http://127.0.0.1:8501`。网页不再依赖命令窗口持续打开；如果 Streamlit 意外退出，守护程序会自动重启。默认界面为中文，可切换英文。
+完整工作台保留既有运行功能和 `stop_ui.bat` 停止入口。本轮不安装旧版自启动任务。演示与完整工作台分别停止，均不需要公网隧道。
 
-首次启用登录自启动时，双击：
+新增命令（在项目 Python 环境运行）：
 
-```text
-install_ui_autostart.bat
+```powershell
+python -m bur01_structmine.cli demo
+python -m bur01_structmine.cli stop-demo
+python -m bur01_structmine.cli evaluate-experiments --input data/examples/simulated/experimental_measurements.csv --output results/evaluations/my_first_evaluation
+python -m bur01_structmine.cli rescore --run-dir results/runs/<run_id>
 ```
 
-安装后，Windows 用户登录时会在后台启动网页，不会自动暴露到局域网或公网。其他控制入口：`stop_ui.bat` 停止网页，`ui_status.bat` 查看状态，`uninstall_ui_autostart.bat` 只移除自启动任务而不删除项目或结果。
+评估输出目录必须尚不存在。重新评分生成独立清单和分数变化，不覆盖原结果；重新注释也另存为新的运行。
 
 命令行入口：
 
@@ -311,7 +331,7 @@ benchmark_report.json             固定基准验收报告，仅基准运行产�
 - `final_protein_sequence`、`final_sequence_source`
 - `annotation_status`、`annotation_errors`
 
-## WASE-screen v0.1
+## WASE-screen v0.2.0
 
 WASE-screen 是透明的候选预筛分，不是正式 WASE 模型，也不预测 S/H ratio。
 
@@ -343,12 +363,15 @@ experimental_readiness_score 10 分
 wase_screen_score
 wase_evidence_coverage
 wase_screen_uncertainty
+wase_information_missingness
+wase_prediction_error_status=not_estimated
+wase_score_explanation
 wase_tier
 wase_missing_evidence
-wase_version=0.1.0
+wase_version=0.2.0
 ```
 
-通道专一性、醇驻留、水排斥、产物逃逸、发酵来源先验和进化证据目前均列为缺失证据，不能据此宣称水相酯化机制已经被验证。
+新输出的 `wase_screen_uncertainty` 和 `wase_prediction_error` 为空；历史“不确定性”仅兼容显示为信息缺失程度。模体得分必须来自映射催化Ser中心的窗口，其他位置命中不计催化分。通道专一性、醇驻留、水排斥、产物逃逸、发酵来源先验和进化证据目前均列为缺失证据，不能据此宣称水相酯化机制已经被验证。
 
 ## 注释可靠性
 

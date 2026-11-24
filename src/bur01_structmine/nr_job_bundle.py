@@ -265,7 +265,7 @@ def export_nr_job_bundle(request: NrExpansionRequest) -> NrRunSummary:
             bundle_dir / "nr_server_postprocess.py",
         )
         metadata = {
-            "project_version": "0.4.0",
+            "project_version": "0.5.0.dev0",
             "nr_run_id": context.nr_run_id,
             "parent_structure_run_id": request.source_run_id,
             "database_scope": "full_nr",
@@ -536,8 +536,8 @@ def import_nr_job_bundle(
         imported_source = server_manifest_path.parent
         _verify_result_checksums(imported_source)
         server_manifest = json.loads(server_manifest_path.read_text(encoding="utf-8"))
-        if server_manifest.get("project_version") != "0.4.0":
-            raise ValueError("Server result was not produced by AquaEsterNet v0.4")
+        if server_manifest.get("project_version") not in {"0.4.0", "0.5.0.dev0"}:
+            raise ValueError("Server result has an unsupported AquaEsterNet version")
         if server_manifest.get("database_scope") != "full_nr":
             raise ValueError("Server result is not marked as a complete NR run")
         nr_run_id = _validated_run_id(server_manifest.get("nr_run_id"))

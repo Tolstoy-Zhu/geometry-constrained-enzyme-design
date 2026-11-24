@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.5.0.dev0 Evidence Workbench
+
+- WASE-screen 0.2.0: mapped Ser-centered motif, atom-aware geometry, explicit information missingness, null predictive error, component explanations and high-priority exclusions.
+- Independent rescoring with source hashes and score deltas; reannotation now creates a new run.
+- Shared typed Excel/CSV experimental assessment, row diagnostics, replicate summaries, condition/unit/method grouping, true residual R2, rank-only WASE comparison and thresholded Top-k reporting.
+- Existing-coordinate ligand/contact/site viewer with model/chain selection and insertion-code-preserving exports.
+- Read-only public Bur01 demo, local pinned 3Dmol bundle, on-demand loopback launcher and identity-checked stop entry.
+- Fixed Windows batch command quoting for MMseqs2 under paths containing spaces.
+- Fixed UniProt review-status parsing so `unreviewed` cannot receive the `reviewed` annotation bonus; added explicit reviewed/unreviewed/unknown regression cases.
+- Inactive UniProt records and records without a protein sequence now produce explicit annotation errors, and unknown review status remains unknown.
+- Preserved original results, dirty files and NR acceptance status. No public deployment or GitHub push.
+
 ### v0.4 NR Integration
 
 - Added a separate NCBI NR service layer for Foldseek target-sequence seed export, two-iteration MMseqs2 search, accession and sequence-hash deduplication, 50% identity clustering, direct 8HFW catalytic-site mapping, and AF2-ready queues.

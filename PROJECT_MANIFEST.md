@@ -1,4 +1,15 @@
-# AquaEsterNet-StructMine v0.4 File Manifest
+# AquaEsterNet-StructMine 0.5.0.dev0 File Manifest
+
+## New Local Entry Points and Modules
+
+- `start_demo.bat`, `stop_demo.bat`, `scripts/windows/demo_service.ps1`: on-demand read-only demo; no autostart or tunnels.
+- `ui/demo.py`, `ui/assets/`: offline public-structure demonstration and local renderer.
+- `src/bur01_structmine/experiments.py`, `sites.py`, `rescoring.py`, `workbench_views.py`, `demo_service.py`, `local_viewer.py`: shared evaluation, coordinate, scoring and UI services.
+- `data/demo/`, `data/templates/`, `data/examples/simulated/`: public computed records, blank template and separate simulated data.
+- `docs/SCORING_CN.md`, `docs/SCORING_EN.md`, `docs/EXPERIMENTS_CN.md`, `docs/EXPERIMENTS_EN.md`, `docs/DEMO_CN.md`, `docs/DEMO_EN.md`: bilingual instructions.
+- `docs/VALIDATION_V05.md`, `docs/validation/v0.5/`: current validation and UI captures.
+
+The legacy service/autostart/tunnel scripts listed below are retained for compatibility, not enabled by this update.
 
 ## User Entry Points
 

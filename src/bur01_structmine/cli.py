@@ -26,6 +26,22 @@ from .prediction import run_prediction, run_prediction_and_mine
 
 PROJECT_NAME = "AquaEsterNet-StructMine"
 REQUIRED_FILES = (
+    "start_demo.bat",
+    "stop_demo.bat",
+    "ui/demo.py",
+    "ui/assets/3Dmol-2.5.5-min.js",
+    "ui/assets/3Dmol-LICENSE.txt",
+    "data/demo/demo_manifest.json",
+    "data/demo/candidates.tsv",
+    "data/templates/experiment_template.xlsx",
+    "data/examples/simulated/experimental_measurements.csv",
+    "docs/SCORING_CN.md",
+    "docs/SCORING_EN.md",
+    "docs/EXPERIMENTS_CN.md",
+    "docs/EXPERIMENTS_EN.md",
+    "docs/DEMO_CN.md",
+    "docs/DEMO_EN.md",
+    "docs/VALIDATION_V05.md",
     "pyproject.toml",
     "requirements.txt",
     "requirements-dev.txt",
@@ -402,6 +418,20 @@ def build_parser() -> argparse.ArgumentParser:
     ui.add_argument("--port", type=int)
     ui.add_argument("--no-browser", action="store_true")
 
+    demo = subparsers.add_parser("demo", help="Start the read-only offline Bur01 demonstration")
+    demo.add_argument("--port", type=int)
+    demo.add_argument("--no-browser", action="store_true")
+    subparsers.add_parser("stop-demo", help="Stop only this project's verified demo process")
+    rescore = subparsers.add_parser("rescore", help="Save an independent WASE v0.2 rescore")
+    rescore.add_argument("--run-dir", required=True)
+    rescore.add_argument("--output-root")
+    evaluate = subparsers.add_parser("evaluate-experiments", help="Evaluate measured and predicted endpoints")
+    evaluate.add_argument("--input", required=True)
+    evaluate.add_argument("--output", required=True, help="New directory; existing directories are not overwritten")
+    evaluate.add_argument("--top-k", type=int, default=5)
+    evaluate.add_argument("--success-threshold", type=float)
+    evaluate.add_argument("--success-below", action="store_true")
+
     validate = subparsers.add_parser("validate", help="Run isolated automated tests")
     validate.add_argument("pytest_args", nargs="*")
     validate_live = subparsers.add_parser("validate-live", help="Run tests plus live environment diagnostics")
@@ -417,6 +447,24 @@ def main(argv: list[str] | None = None) -> int:
     if args.command in {"design", "design-setup", "design-review"}:
         from .design_cli import dispatch_design
         return dispatch_design(args)
+    if args.command in {"demo", "stop-demo"}:
+        from .demo_service import start_demo, stop_demo
+        result = start_demo(args.port, args.no_browser) if args.command == "demo" else stop_demo()
+        print(json.dumps(result, indent=2))
+        return 0
+    if args.command == "rescore":
+        from .rescoring import rescore_run
+        print(rescore_run(args.run_dir, args.output_root))
+        return 0
+    if args.command == "evaluate-experiments":
+        from .experiments import read_experiments, evaluate_experiments, save_evaluation
+        path = Path(args.input)
+        source = path.read_bytes()
+        result = evaluate_experiments(read_experiments(source, path.name), top_k=args.top_k,
+                                      success_threshold=args.success_threshold, higher_is_success=not args.success_below)
+        save_evaluation(result, args.output, source)
+        print(result.summary.model_dump_json(indent=2))
+        return 2 if not result.errors.empty else 0
     if args.command == "check-files":
         return check_files()
     if args.command == "list-sources":

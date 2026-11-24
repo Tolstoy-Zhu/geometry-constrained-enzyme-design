@@ -1,5 +1,9 @@
 # Third-Party Software And Data Notices
 
+## Local 3D Bundle (0.5.0.dev0)
+
+The demo redistributes the unmodified 3Dmol 2.5.5 browser bundle, not model weights. Original license text is retained at `ui/assets/3Dmol-LICENSE.txt`; source URLs and SHA-256 are in `ui/assets/README.md`. The bundle is BSD-3-Clause with incorporated component notices. No new Python dependencies were introduced; the existing dependency lock is unchanged.
+
 This file is an inventory, not a replacement for the complete license text shipped by each dependency. Installed package metadata and upstream repositories remain authoritative.
 
 ## Core Software

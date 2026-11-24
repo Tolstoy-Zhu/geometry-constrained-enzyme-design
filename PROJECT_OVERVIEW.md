@@ -1,4 +1,6 @@
-# AquaEsterNet-StructMine v0.4 Overview
+# AquaEsterNet-StructMine 0.5.0.dev0 Overview
+
+This local update adds interpretable scoring, experimental assessment, coordinate-based sites and a read-only Bur01 demo. It adds no new performance predictor, sequence generator, public deployment or GitHub push. Full-NR acceptance remains pending.
 
 AquaEsterNet-StructMine is the structure-search and evidence-integration module for Bur01-like enzyme discovery.
 
@@ -7,7 +9,7 @@ AquaEsterNet-StructMine is the structure-search and evidence-integration module 
 - `AquaEsterNet`: broader water-phase ester mechanism and discovery framework.
 - `StructMine`: structure mining, NR sequence expansion, annotation, triage, and visualization module.
 - `bur01_structmine`: Python package name retained for compatibility.
-- `WASE-screen`: transparent v0.1 candidate screen, distinct from future formal WASE.
+- `WASE-screen`: transparent 0.2.0 candidate screen, distinct from future formal WASE. Predictive error is unestimated; information missingness is not a success probability.
 - `NR expansion`: independent sequence search, clustering, and catalytic-identity mapping; it is not structural evidence by itself.
 - `NR novelty`: nearest-neighbor audit for predicted or designed sequences; natural-sequence self-hits are not novelty evidence.
 

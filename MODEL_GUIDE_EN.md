@@ -1,5 +1,11 @@
 # AquaEsterNet-StructMine Model Guide
 
+## 0.5.0.dev0 Additions
+
+Use `start_demo.bat` / `stop_demo.bat` for read-only demonstration without the compute runtime. The full workbench adds **Experimental assessment** and **Substrates and sites** under **Structure**. **Save independent rescore** creates a separate record without changing historical values.
+
+These modules inspect scoring evidence, actual coordinates and user-provided experiments. No new predictor or sequence generator is added. See [scoring](docs/SCORING_EN.md), [experiments](docs/EXPERIMENTS_EN.md) and [demo](docs/DEMO_EN.md).
+
 ## 1. What It Is
 
 AquaEsterNet-StructMine is not a single neural network. It is a reproducible structure-mining and evidence-integration workflow constrained by the Bur01 structure. It answers:
@@ -129,7 +135,7 @@ Global sequence alignment maps 8HFW `Ser111/Asp241/His274` to the new sequence. 
 
 Public MSA retrieval and local GPU inference are separate stages. MSA requests are serialized and retried up to three times with default 15- and 30-second exponential delays; original service errors are retained in events and manifests. A process lock allows one GPU job, cancellation terminates the corresponding WSL process, stale locks recover, and CUDA memory failures never fall back to CPU. JAX explicitly disables ColabFold unified memory for the 16 GB RTX 4080; this changes allocation behavior, not model algorithms. CPU OpenMM relaxes rank_001 after ranking.
 
-## 4. WASE-screen v0.1
+## 4. WASE-screen v0.2.0
 
 ### Structural Fit, 45 Points
 
@@ -143,9 +149,9 @@ Bidirectional TM-score limits length-normalization bias, coverage rejects local-
 
 ### Catalytic Core, 30 Points
 
-- GXSXG-like motif: 5 points.
+- GXSXG-like window centered on the mapped catalytic Ser: 5 points. Other sequence matches are auxiliary only.
 - Mapped Ser/Asp/His identities: 15 points.
-- Catalytic geometry contacts: 10 points.
+- Catalytic geometry contacts: 10 points. Each assessable Ser-His or Asp-His pair receives 5 points for a 2-5 Angstrom distance. Missing required side-chain atoms or identity mismatches are not assessed, rather than known negatives.
 
 ### Annotation Confidence, 15 Points
 
@@ -184,7 +190,7 @@ Formal WASE still requires substrate-tunnel specialization, alcohol retention, w
 3. **Catalytic mapping in the candidate record**: integrates overall fold with Ser/Asp/His identity and geometry.
 4. **Traceable cross-database evidence**: cache state, errors, input hashes, software, and database versions are recorded.
 5. **Shared CLI and web service layer**: both interfaces execute the same scientific logic.
-6. **Explicit WASE-screen boundary**: uncertainty and missing evidence are reported without claiming S/H-ratio prediction.
+6. **Explicit WASE-screen scope**: information missingness and missing evidence are reported; predictive error remains unestimated. No S/H-ratio prediction is claimed.
 7. **Bidirectional prediction-mining lineage**: rank_001, prediction ID, run ID, input hashes, and parameter checksums remain connected.
 8. **Dynamic catalytic references**: new sequences map the 8HFW triad instead of assuming every query uses residue numbers 111/241/274.
 9. **Privacy and GPU state are first-class evidence**: consent, cache state, serialized MSA access, locks, cancellation, and memory failures are recorded.

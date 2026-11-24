@@ -1,0 +1,11 @@
+﻿sample_id,candidate_id,metric,value,unit,conditions,method,replicate_id,predicted_value,prediction_source,predicted_metric,predicted_unit,wase_screen_score,wase_source_run_id,wase_version,data_kind
+SIM-1,SIM-C1,activity,9.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,1,12.0,simulated_predictor,,,40.0,,,simulated
+SIM-1,SIM-C1,activity,11.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,2,12.0,simulated_predictor,,,40.0,,,simulated
+SIM-2,SIM-C2,activity,19.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,1,18.0,simulated_predictor,,,65.0,,,simulated
+SIM-2,SIM-C2,activity,21.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,2,18.0,simulated_predictor,,,65.0,,,simulated
+SIM-3,SIM-C3,activity,29.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,1,33.0,simulated_predictor,,,55.0,,,simulated
+SIM-3,SIM-C3,activity,31.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,2,33.0,simulated_predictor,,,55.0,,,simulated
+SIM-4,SIM-C4,activity,39.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,1,38.0,simulated_predictor,,,80.0,,,simulated
+SIM-4,SIM-C4,activity,41.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,2,38.0,simulated_predictor,,,80.0,,,simulated
+SIM-5,SIM-C5,activity,49.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,1,49.0,simulated_predictor,,,90.0,,,simulated
+SIM-5,SIM-C5,activity,51.0,U/mg,pH=7;T=30C;substrate=SIM,simulated,2,49.0,simulated_predictor,,,90.0,,,simulated

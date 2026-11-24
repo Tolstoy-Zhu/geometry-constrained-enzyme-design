@@ -76,4 +76,5 @@ def test_streamlit_remote_gate_unlocks_the_workbench(monkeypatch, tmp_path: Path
         "性质预测",
         "历史",
         "诊断",
+        "实验评估",
     ]

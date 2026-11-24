@@ -32,6 +32,12 @@ LOCAL_TM_EXTRA_FIELDS = [
     "catalytic_ser_his_distance",
     "catalytic_asp_his_distance",
     "catalytic_geometry_contacts",
+    "catalytic_geometry_status",
+    "catalytic_geometry_missing",
+    "mapped_catalytic_available_count",
+    "mapped_catalytic_ser_sequence_index",
+    "mapped_catalytic_ser_motif",
+    "mapped_catalytic_ser_motif_status",
 ]
 LOCAL_TM_FIELDS = list(FOLDSEEK_FIELDS) + LOCAL_TM_EXTRA_FIELDS
 
@@ -106,7 +112,7 @@ def load_ca_traces(
                 continue
             atoms = {
                 atom.name: np.asarray(atom.coord, dtype=float)
-                for atom in residue.get_unpacked_list()
+                for atom in residue.get_atoms()
             }
             residues.append(
                 TraceResidue(
@@ -189,8 +195,10 @@ def _map_catalytic_residues(
     mapping: dict[int, int],
     catalytic_query_residues: tuple[tuple[int, str], ...],
 ) -> dict[str, object]:
+    # Integer reference sites never silently select an insertion-code variant.
     query_index_by_number = {
         residue.residue_number: index for index, residue in enumerate(query.residues)
+        if not residue.insertion_code
     }
     mapped: list[TraceResidue | None] = []
     identity_count = 0
@@ -210,12 +218,40 @@ def _map_catalytic_residues(
     serine = mapped_by_identity.get("S")
     aspartate = mapped_by_identity.get("D")
     histidine = mapped_by_identity.get("H")
+    geometry_missing = []
+    for label, residue, atoms in (
+        ("Ser", serine, ("OG",)), ("Asp", aspartate, ("OD1", "OD2")),
+        ("His", histidine, ("ND1", "NE2")),
+    ):
+        if residue is None:
+            geometry_missing.append(f"{label}:missing_residue")
+        elif residue.amino_acid != {"Ser": "S", "Asp": "D", "His": "H"}[label]:
+            geometry_missing.append(f"{label}:identity_mismatch")
+        elif not all(atom in residue.atoms for atom in atoms):
+            geometry_missing.append(f"{label}:missing_sidechain_atoms")
     ser_his = _minimum_atom_distance(serine, ("OG",), histidine, ("NE2", "ND1"))
     asp_his = _minimum_atom_distance(aspartate, ("OD1", "OD2"), histidine, ("ND1", "NE2"))
+    if any(item.startswith(("Ser:", "His:")) for item in geometry_missing):
+        ser_his = None
+    if any(item.startswith(("Asp:", "His:")) for item in geometry_missing):
+        asp_his = None
     contacts = sum(
         int(distance is not None and 2.0 <= distance <= 5.0)
         for distance in (ser_his, asp_his)
     )
+    assessable = not geometry_missing and len(catalytic_query_residues) == 3
+    ser_index = next((i for i, residue in enumerate(target.residues) if residue is serine), None)
+    motif = None
+    if ser_index is not None and 2 <= ser_index < len(target.residues) - 2:
+        window = target.residues[ser_index - 2:ser_index + 3]
+        continuous = all(
+            (b.residue_number == a.residue_number + 1 and not b.insertion_code)
+            or (b.residue_number == a.residue_number and b.insertion_code
+                and ord(b.insertion_code) == ord(a.insertion_code or "@") + 1)
+            for a, b in zip(window, window[1:])
+        )
+        if continuous:
+            motif = "".join(residue.amino_acid for residue in window)
     return {
         "query_catalytic_residues": ";".join(
             f"{amino_acid}{residue_number}"
@@ -223,9 +259,15 @@ def _map_catalytic_residues(
         ),
         "mapped_catalytic_residues": ";".join(labels),
         "mapped_catalytic_identity_count": identity_count,
+        "mapped_catalytic_available_count": sum(residue is not None for residue in mapped),
+        "mapped_catalytic_ser_sequence_index": ser_index + 1 if ser_index is not None else None,
+        "mapped_catalytic_ser_motif": motif,
+        "mapped_catalytic_ser_motif_status": "assessed" if motif else "not_assessable",
         "catalytic_ser_his_distance": ser_his,
         "catalytic_asp_his_distance": asp_his,
-        "catalytic_geometry_contacts": contacts,
+        "catalytic_geometry_contacts": contacts if assessable else None,
+        "catalytic_geometry_status": ("compatible" if contacts == 2 else "out_of_range") if assessable else "not_assessable",
+        "catalytic_geometry_missing": ";".join(geometry_missing),
     }
 
 

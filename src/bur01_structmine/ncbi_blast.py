@@ -143,7 +143,7 @@ class NcbiRemoteBlastClient:
         self.session.headers.update(
             {
                 "User-Agent": (
-                    "AquaEsterNet-StructMine/0.4.0 "
+                    "AquaEsterNet-StructMine/0.5.0.dev0 "
                     f"(NCBI BLAST research workflow; contact={self.email})"
                 )
             }

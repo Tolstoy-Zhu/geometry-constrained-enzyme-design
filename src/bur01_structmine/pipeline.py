@@ -311,6 +311,11 @@ def run_pipeline(
         query_pdb = resolve_path(query_cfg["pdb_file"])
     selected_query_chain = query_chain if query_chain is not None else query_cfg.get("chain")
     query_cfg["chain"] = selected_query_chain
+    if catalytic_reference_sites is None:
+        catalytic_reference_sites = (
+            {"S111": 111, "D241": 241, "H274": 274}
+            if not query_structure and str(query_cfg.get("pdb_id", "")).upper() == "8HFW" else {}
+        )
     cfg["lineage"] = {
         "parent_prediction_id": parent_prediction_id,
         "catalytic_reference_sites": catalytic_reference_sites or {},
@@ -442,6 +447,10 @@ def run_pipeline(
         )
         context.emit("annotation", "completed", f"Annotated {len(annotated_df)} candidate rows", progress=0.78)
 
+        from .rescoring import enrich_local_catalytic_evidence
+        annotated_df = enrich_local_catalytic_evidence(
+            annotated_df, query_pdb, selected_query_chain, catalytic_reference_sites,
+        )
         annotated_df = add_candidate_scores(annotated_df)
         annotated_xlsx = out_prefix.with_suffix(".annotated.xlsx")
         annotated_tsv = out_prefix.with_suffix(".annotated.tsv")
@@ -454,12 +463,12 @@ def run_pipeline(
         context.add_artifact("annotated_tsv", annotated_tsv)
         context.add_artifact("candidate_fasta", candidate_fasta)
         context.add_artifact("ncbi_script", ncbi_script)
-        context.emit("score", "completed", "WASE-screen v0.1 scoring completed", progress=0.92, artifact=annotated_xlsx)
+        context.emit("score", "completed", "WASE-screen v0.2.0 scoring completed", progress=0.92, artifact=annotated_xlsx)
 
         summary = context.complete(len(raw_df), len(filtered_df), len(annotated_df))
         _write_latest_pointer(run_root, summary)
         _link_parent_prediction(parent_prediction_id, summary.run_id)
-        print("\n[DONE] AquaEsterNet-StructMine v0.4 pipeline finished.")
+        print("\n[DONE] AquaEsterNet-StructMine v0.5.0.dev0 pipeline finished.")
         print(f"Run ID:           {summary.run_id}")
         print(f"Run directory:    {summary.run_dir}")
         print(f"Annotated table:  {annotated_xlsx}")
@@ -493,18 +502,37 @@ def reannotate_run(run_dir: str | Path) -> pd.DataFrame:
         request_sleep_seconds=float(annotation_cfg.get("request_sleep_seconds", 0.15)),
         cache_dir=resolve_path(annotation_cfg.get("cache_dir", ".cache/annotations")),
     )
+    from .rescoring import enrich_local_catalytic_evidence
+    from .run_context import make_run_id, file_sha256
+    from datetime import datetime, timezone
+    source_run_id = manifest.run_id
+    source_manifest_hash = file_sha256(manifest_path)
+    sites = manifest.catalytic_reference_sites or {}
+    if not sites and not manifest.parent_prediction_id and manifest.query_pdb_id.upper() == "8HFW":
+        sites = {"S111": 111, "D241": 241, "H274": 274}
+    annotated_df = enrich_local_catalytic_evidence(annotated_df, Path(manifest.query_path), manifest.query_chain, sites)
     annotated_df = add_candidate_scores(annotated_df)
-    annotated_tsv = Path(manifest.artifacts.get("annotated_tsv", run_dir / "candidates.annotated.tsv"))
-    annotated_xlsx = Path(manifest.artifacts.get("annotated_xlsx", annotated_tsv.with_suffix(".xlsx")))
-    prefix_text = str(annotated_tsv)
-    suffix = ".annotated.tsv"
-    out_prefix = Path(prefix_text[: -len(suffix)]) if prefix_text.endswith(suffix) else annotated_tsv.with_suffix("")
+    annotated_df["source_run_id"] = source_run_id
+    run_dir = run_dir.parent / make_run_id("reannotation")
+    run_dir.mkdir(parents=True, exist_ok=False)
+    manifest_path = run_dir / "run_manifest.json"
+    out_prefix = run_dir / "candidates"
+    annotated_tsv = run_dir / "candidates.annotated.tsv"
+    annotated_xlsx = annotated_tsv.with_suffix(".xlsx")
     annotated_df.to_csv(annotated_tsv, sep="\t", index=False)
     write_excel_safely(annotated_df, annotated_xlsx)
     export_annotation_outputs(annotated_df, out_prefix)
     manifest.annotated_hit_count = len(annotated_df)
+    manifest.run_id = run_dir.name
+    manifest.project_version = "0.5.0.dev0"
+    manifest.created_at = manifest.started_at = manifest.completed_at = datetime.now(timezone.utc)
     manifest.artifacts["annotated_tsv"] = str(annotated_tsv.resolve())
     manifest.artifacts["annotated_xlsx"] = str(annotated_xlsx.resolve())
+    manifest.artifacts["events"] = str(run_dir / "events.jsonl")
+    manifest.artifacts["candidate_fasta"] = str(out_prefix.with_suffix(".candidate_proteins.fasta"))
+    provenance = run_dir / "reannotation_source.json"
+    provenance.write_text(json.dumps({"source_run_id": source_run_id, "source_manifest_sha256": source_manifest_hash}), encoding="utf-8")
+    manifest.artifacts["reannotation_source"] = str(provenance)
     tmp_manifest = manifest_path.with_suffix(".json.tmp")
     tmp_manifest.write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
     tmp_manifest.replace(manifest_path)

@@ -928,7 +928,7 @@ def build_nr_demo_snapshot(
     )
     pd.DataFrame(hits_to_rows(all_hits)).to_csv(hits_path, sep="\t", index=False)
     manifest = {
-        "project_version": "0.4.0",
+        "project_version": "0.5.0.dev0",
         "database_scope": "nr_remote_snapshot",
         "database_name": "NCBI nr",
         "created_at": datetime.now(timezone.utc).isoformat(),

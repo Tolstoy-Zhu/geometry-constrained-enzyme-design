@@ -175,3 +175,26 @@ def filter_hits(
     out = out.reset_index(drop=True)
     out.insert(0, "rank_after_filter", range(1, len(out) + 1))
     return out
+
+
+def explain_filter_hits(df: pd.DataFrame, **thresholds) -> pd.DataFrame:
+    """Explain the existing structural filter without changing its thresholds."""
+    rules = [("alntmscore", "min_alntmscore", 0.45, 0, True), ("rmsd", "max_rmsd", 4.0, 999, False),
+             ("qcov", "min_qcov", 0.60, 0, True), ("tcov", "min_tcov", 0.40, 0, True),
+             ("alnlen", "min_alnlen", 180, 0, True), ("fident", "max_sequence_identity", 0.95, 0, False)]
+    output = df[[col for col in ("target", "alntmscore", "rmsd", "qcov", "tcov", "alnlen", "fident") if col in df]].copy()
+    explanations = []
+    for _, row in df.iterrows():
+        reasons = []
+        for field, parameter, default, fallback, minimum in rules:
+            if field not in df:
+                continue
+            value = row[field] if pd.notna(row[field]) else fallback
+            limit = thresholds.get(parameter, default)
+            rejected = value < limit if minimum else value > limit
+            if rejected:
+                reasons.append(f"{field}{'<' if minimum else '>'}{limit}" + (" (missing)" if pd.isna(row[field]) else ""))
+        explanations.append(";".join(reasons))
+    output["structural_filter_pass"] = [not value for value in explanations]
+    output["filter_exclusion_reasons"] = explanations
+    return output

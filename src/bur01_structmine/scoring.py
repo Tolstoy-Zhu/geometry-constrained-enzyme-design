@@ -1,13 +1,14 @@
-"""Transparent candidate triage and WASE-screen v0.1 scoring."""
+"""Transparent candidate triage; scores are not calibrated activity predictions."""
 from __future__ import annotations
 
 import math
+import json
 import re
 from typing import Any
 
 import pandas as pd
 
-WASE_VERSION = "0.1.0"
+WASE_VERSION = "0.2.0"
 FORMAL_WASE_MISSING = [
     "tunnel_specialization",
     "alcohol_retention",
@@ -90,26 +91,30 @@ def _catalytic_core(row: pd.Series) -> tuple[float, float, list[str]]:
     score = 0.0
     coverage = 0.0
     missing: list[str] = []
-    sequence = row.get("final_protein_sequence", "")
-    if _present(sequence):
-        score += 5.0 if has_serine_hydrolase_motif(str(sequence)) else 0.0
+    motif = row.get("mapped_catalytic_ser_motif")
+    if _present(motif) and len(str(motif)) == 5:
+        score += 5.0 if re.fullmatch(r"G[A-Z]S[A-Z]G", str(motif).upper()) else 0.0
         coverage += 5.0
     else:
-        missing.append("protein_sequence_for_motif")
+        missing.append("mapped_ser_motif")
 
     mapped_count = _float(row.get("mapped_catalytic_identity_count"))
     if mapped_count is not None:
         score += 15.0 * _clamp(mapped_count / 3.0)
-        coverage += 15.0
+        available = _float(row.get("mapped_catalytic_available_count"))
+        coverage += 5.0 * _clamp(available if available is not None else 3.0, 0.0, 3.0)
+        if available is not None and available < 3:
+            missing.append("partially_unmapped_triad")
     else:
         missing.append("mapped_catalytic_triad")
 
-    geometry_contacts = _float(row.get("catalytic_geometry_contacts"))
-    if geometry_contacts is not None:
-        score += 10.0 * _clamp(geometry_contacts / 2.0)
-        coverage += 10.0
-    else:
-        missing.append("catalytic_geometry")
+    for field in ("catalytic_ser_his_distance", "catalytic_asp_his_distance"):
+        distance = _float(row.get(field))
+        if distance is not None:
+            score += 5.0 if 2.0 <= distance <= 5.0 else 0.0
+            coverage += 5.0
+        else:
+            missing.append(field)
     return score, coverage, missing
 
 
@@ -202,7 +207,7 @@ def score_wase_screen(row: pd.Series) -> dict[str, Any]:
     readiness, readiness_coverage, readiness_missing = _experimental_readiness(row)
     score = structure + catalytic + annotation + readiness
     evidence_coverage = structure_coverage + catalytic_coverage + annotation_coverage + readiness_coverage
-    uncertainty = 100.0 - evidence_coverage
+    information_missingness = 100.0 - evidence_coverage
 
     qtm = _float(row.get("qtmscore")) or 0.0
     ttm = _float(row.get("ttmscore")) or 0.0
@@ -222,6 +227,18 @@ def score_wase_screen(row: pd.Series) -> dict[str, Any]:
 
     missing = structure_missing + catalytic_missing + annotation_missing + readiness_missing
     missing.extend(FORMAL_WASE_MISSING)
+    gates = {"score_below_70": score < 70, "coverage_below_75": evidence_coverage < 75,
+             "min_tm_below_0.5": min(qtm, ttm) < 0.5, "catalytic_below_20": catalytic < 20}
+    explanation = {
+        "structure_fit": {"score": round(structure, 3), "maximum": 45, "observed_weight": structure_coverage,
+                          "basis": "25*min(qTM,tTM)+10*sqrt(qcov*tcov)+10*clamp(1-rmsd/5)", "missing": structure_missing},
+        "catalytic_core": {"score": round(catalytic, 3), "maximum": 30, "observed_weight": catalytic_coverage,
+                           "basis": "mapped Ser-centered motif:5; mapped S/D/H identities:15; two 2-5 A contacts:10", "missing": catalytic_missing},
+        "annotation_confidence": {"score": round(annotation, 3), "maximum": 15, "observed_weight": annotation_coverage,
+                                  "basis": "function:5; reviewed/experimental:5; structure confidence:5", "missing": annotation_missing},
+        "experimental_readiness": {"score": round(readiness, 3), "maximum": 10, "observed_weight": readiness_coverage,
+                                   "basis": "sequence:4; length:2; coverage:2; accession:2", "missing": readiness_missing},
+    }
     return {
         "structure_fit_score": round(structure, 3),
         "catalytic_core_score": round(catalytic, 3),
@@ -229,12 +246,27 @@ def score_wase_screen(row: pd.Series) -> dict[str, Any]:
         "experimental_readiness_score": round(readiness, 3),
         "wase_screen_score": round(score, 3),
         "wase_evidence_coverage": round(evidence_coverage, 3),
-        "wase_screen_uncertainty": round(uncertainty, 3),
+        "wase_screen_uncertainty": None,
+        "wase_information_missingness": round(information_missingness, 3),
+        "wase_prediction_error": None,
+        "wase_prediction_error_status": "not_estimated",
+        "wase_high_priority_exclusion_reasons": ";".join(key for key, excluded in gates.items() if excluded),
+        "wase_score_explanation": json.dumps(explanation, ensure_ascii=False),
         "wase_tier": tier,
         "wase_missing_evidence": ";".join(dict.fromkeys(missing)),
         "wase_version": WASE_VERSION,
         "wase_scope": "screening_only_not_formal_wase",
     }
+
+
+def read_score_display(row: pd.Series | dict) -> dict[str, Any]:
+    """Compatibility projection; never change a stored historical record."""
+    missingness = _float(row.get("wase_information_missingness"))
+    if missingness is None:
+        coverage = _float(row.get("wase_evidence_coverage"))
+        missingness = 100 - coverage if coverage is not None else _float(row.get("wase_screen_uncertainty"))
+    return {"information_missingness": missingness, "prediction_error": None,
+            "prediction_error_status": "not_estimated", "version": row.get("wase_version", "legacy")}
 
 
 def assign_recommendation(row: pd.Series) -> str:

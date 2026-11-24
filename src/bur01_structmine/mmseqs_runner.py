@@ -140,12 +140,16 @@ def build_easy_search_args(
     return args
 
 
-def _command(runtime: MmseqsRuntime, args: Iterable[str]) -> list[str]:
+def _command(runtime: MmseqsRuntime, args: Iterable[str]) -> list[str] | str:
     parts = [str(value) for value in args]
     if runtime.backend == "wsl":
         return ["wsl.exe", "-d", runtime.wsl_distribution, "--", runtime.executable, *parts]
     if os.name == "nt" and Path(runtime.executable).suffix.lower() in {".cmd", ".bat"}:
-        return ["cmd.exe", "/d", "/c", runtime.executable, *parts]
+        values = [runtime.executable, *parts]
+        if any(any(char in value for char in '%!&|<>^"\r\n') for value in values):
+            raise ValueError("Unsafe shell metacharacter in a Windows batch argument")
+        # cmd /s strips one outer quote pair; list2cmdline cannot supply it.
+        return 'cmd.exe /d /s /c "' + " ".join('"' + value + '"' for value in values) + '"'
     return [runtime.executable, *parts]
 
 
@@ -156,7 +160,8 @@ def run_mmseqs_command(
     log_path: str | Path | None = None,
 ) -> None:
     command = _command(runtime, args)
-    print("[CMD]", " ".join(command))
+    command_label = command if isinstance(command, str) else " ".join(command)
+    print("[CMD]", command_label)
     if log_path is None:
         result = capture_process_text(command)
         if result.returncode:
@@ -167,7 +172,7 @@ def run_mmseqs_command(
     log_path = Path(log_path)
     ensure_dir(log_path.parent)
     with log_path.open("a", encoding="utf-8") as handle:
-        handle.write("[CMD] " + " ".join(command) + "\n")
+        handle.write("[CMD] " + command_label + "\n")
         handle.flush()
         subprocess.run(command, stdout=handle, stderr=subprocess.STDOUT, env=utf8_process_env(), check=True)
 

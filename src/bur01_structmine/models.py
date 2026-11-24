@@ -11,6 +11,59 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 RunStatus = Literal["created", "running", "completed", "failed", "cancelled"]
 EventState = Literal["started", "running", "completed", "warning", "failed", "cancelled"]
+
+
+class ExperimentRecord(BaseModel):
+    """One measurement; optional predictions refer to the same endpoint."""
+
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
+    sample_id: str = Field(min_length=1)
+    candidate_id: str = ""
+    metric: Literal["activity", "relative_activity", "Tm", "optimal_temperature", "residual_activity", "solubility", "S/H"]
+    value: float
+    unit: str = Field(min_length=1)
+    conditions: str = Field(min_length=1)
+    method: str = Field(min_length=1)
+    replicate_id: str = Field(min_length=1)
+    predicted_value: float | None = None
+    prediction_source: str = ""
+    predicted_metric: str = ""
+    predicted_unit: str = ""
+    wase_screen_score: float | None = Field(default=None, ge=0, le=100)
+    wase_source_run_id: str = ""
+    wase_version: str = ""
+    data_kind: Literal["experimental", "simulated"] = "experimental"
+
+
+class EvaluationSummary(BaseModel):
+    schema_version: str = "1.0.0"
+    raw_rows: int
+    valid_rows: int
+    invalid_rows: int
+    sample_groups: int
+    comparison_groups: int
+    simulated_rows: int
+    success_threshold: float | None = None
+    success_direction: Literal["at_least", "at_most"] = "at_least"
+    top_k: int = Field(default=5, ge=1)
+    notes: list[str] = Field(default_factory=list)
+
+
+class SiteSelection(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
+    structure_sha256: str
+    model_id: str
+    chain_id: str
+    residue_number: int
+    insertion_code: str = ""
+    residue_name: str
+    mark: Literal["keep", "focus", "exclude"]
+    ligand_ids: list[str] = Field(default_factory=list)
+    cutoff_angstrom: float = Field(default=4.0, gt=0, le=20)
+    minimum_distance_angstrom: float | None = None
+    substrate_name: str = ""
+    smiles: str = ""
+    conditions: str = ""
 PredictionPreset = Literal["quick", "standard", "high"]
 NrDatabaseScope = Literal["nr_remote_snapshot", "full_nr", "custom_mmseqs"]
 NrExecutionMode = Literal["local", "job_bundle", "import"]
@@ -123,7 +176,7 @@ class CandidateRecord(BaseModel):
 
 class RunManifest(BaseModel):
     run_id: str
-    project_version: str = "0.4.0"
+    project_version: str = "0.5.0.dev0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
@@ -227,7 +280,7 @@ class PredictionModelRecord(BaseModel):
 
 class PredictionManifest(BaseModel):
     prediction_id: str
-    project_version: str = "0.4.0"
+    project_version: str = "0.5.0.dev0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
@@ -323,7 +376,7 @@ class NrCandidateRecord(BaseModel):
 
 class NrRunManifest(BaseModel):
     nr_run_id: str
-    project_version: str = "0.4.0"
+    project_version: str = "0.5.0.dev0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
@@ -399,7 +452,7 @@ class NrNoveltyRequest(BaseModel):
 
 class NrNoveltyManifest(BaseModel):
     novelty_id: str
-    project_version: str = "0.4.0"
+    project_version: str = "0.5.0.dev0"
     status: RunStatus = "created"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     started_at: datetime | None = None
