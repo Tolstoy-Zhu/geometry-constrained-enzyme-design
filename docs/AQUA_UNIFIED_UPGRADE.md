@@ -35,7 +35,7 @@ Windows 多环境部署可复制 `configs/unified/runtime.example.json` 为 `.ca
 3. 将 `scripts/unified/aqua-python` 复制为 `<部署目录>/bin/aqua-python` 并赋予执行权限。该入口设置模型目录、工作目录及 CUDA 库路径。
 4. 模型文件按 `property_assets.py` 和 `design_models.py` 中的来源与校验值准备，分别放在 `models/properties-v1` 与 `models/design-v1`。
 5. 在网页“项目与任务”保存 SSH 设置，远端 Python 字段使用上述 `bin/aqua-python`。配置写入本机 `.cache/unified/servers.json`，不提交 Git。
-6. 运行 `bin/aqua-python code/scripts/unified/gpu_smoke.py --output logs/gpu-smoke.json`。这是数值环境和检查点检查，不是酶轨迹验收。
+6. 运行 `<部署目录>/bin/aqua-python <部署目录>/code/scripts/unified/gpu_smoke.py --output <部署目录>/logs/gpu-smoke.json`，将占位符替换为实际绝对路径。这是数值环境和检查点检查，不是酶轨迹验收；入口会将工作目录设为仓库目录。
 
 可用 `PIP_INDEX_URL`、`AQUA_TORCH_INDEX`、`PIP_FIND_LINKS` 指定可信镜像或已校验的本地安装包。不会修改 GPU 驱动。所有重计算任务默认共用单个 GPU 执行锁。
 

@@ -1,5 +1,7 @@
 -r requirements.txt
 -r requirements-learning.txt
 OpenMM==8.2.0
+# The frozen learning baseline uses NumPy 1.26; newer Arrow wheels require NumPy 2.
+pyarrow==20.0.0
 pytest>=9.1.1,<10
 playwright==1.61.0
