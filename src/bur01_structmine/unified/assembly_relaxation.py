@@ -77,7 +77,8 @@ def relax_assembly(structure,input,output):
         if last is not None and chain!=last:output_lines.append('TER')
         last=chain;resname={'HID':'HIS','HIE':'HIS','HIP':'HIS'}.get(atom.residue.name,atom.residue.name)
         x,y,z=xyz[index]*10;name=atom.name
-        output_lines.append(f'ATOM  {serial:5d} {name:^4s} {resname:3s} {chain}{position:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {atom.element.symbol:>2s}')
+        field=' '+name.ljust(3) if len(name)<4 else name
+        output_lines.append(f'ATOM  {serial:5d} {field} {resname:3s} {chain}{position:4d}    {x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {atom.element.symbol:>2s}')
         serial+=1;heavy.append([x,y,z]);heavy_chains.append(chain);labels.append(f'{chain}:{position}:{name}')
     pdb=output/'repaired_assembly.pdb';pdb.write_text('\n'.join(output_lines+['TER','END'])+'\n')
     reviews=[review_structure(pdb,sequence,output/('review_'+chain),chain=chain,atom_rules=request.get('atom_rules')) for chain in chains]

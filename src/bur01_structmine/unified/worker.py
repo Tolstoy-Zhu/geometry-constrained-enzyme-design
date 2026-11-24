@@ -225,6 +225,14 @@ def main():
             stopped.set()
             start_worker(store)
     elif args.action=="status":
+        spec=TaskSpec.model_validate_json(row['spec'])
+        if spec.kind=='mechanism' and spec.inputs.get('action')=='equilibrate':
+            progress=store.path.parent/'tasks'/args.task_id/'output/mechanism/progress.json'
+            if progress.is_file():
+                data=json.loads(progress.read_text())
+                row['mechanism_progress']={'completed_ps':data.get('completed_ps',0),
+                    'completed_chunks':data.get('completed_chunks',0),
+                    'last_sample':data.get('chunks',[{}])[-1].get('last_sample') if data.get('chunks') else None}
         log=store.path.parent/"tasks"/args.task_id/"process.log"
         if log.exists():
             with log.open("rb") as handle:

@@ -253,11 +253,35 @@ def model_page():
             for filename,mime in [('predictions.csv','text/csv'),('predictions.json','application/json')]:
                 st.download_button('下载 '+filename,(report/filename).read_bytes(),filename,mime,key='kinetic_download_'+filename)
 
+@st.fragment(run_every='10s')
+def equilibration_task_table():
+    from .polling import schedule_sync
+    store=Store();project=context()['project_id'];schedule_sync(project,store);rows=[]
+    for task in store.tasks(project):
+        spec=json.loads(task['spec']);action=spec.get('inputs',{}).get('action')
+        if spec['kind']!='mechanism' or action not in {'build-system','equilibrate'}:continue
+        result=json.loads(task['result']) if task.get('result') else {}
+        progress=result.get('progress',{});sample=progress.get('last_sample') or {}
+        remote=result.get('remote') or {};quality=remote.get('status','')
+        completed=progress.get('completed_ps',remote.get('equilibration_ps'))
+        rmsd=sample.get('core_rmsd_A')
+        rows.append({'任务':task['id'][-8:],'阶段':{'build-system':'显式溶液装配','equilibrate':'分阶段平衡'}[action],
+            '运行状态':{'queued':'排队中','running':'计算中','completed':'已完成','failed':'失败','cancelled':'已取消','interrupted':'已中断','blocked':'待处理'}.get(task['state'],task['state']),
+            '已平衡（ps）':f'{completed:g}' if completed is not None else '待开始',
+            '核心 RMSD（Å）':f'{rmsd:.3f}' if rmsd is not None else '—',
+            '质量检查':{'passed':'通过，待批次放行','blocked':'未通过','built_awaiting_equilibration':'装配完成，待平衡'}.get(quality,'待完成')})
+    if rows:
+        st.subheader('后台装配与平衡进度')
+        st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
+        st.caption('平衡时长单独统计；任务执行完毕与质量检查通过分别显示。关闭本机网页不终止远端排队与计算。')
+
+
 def mechanism_page():
     from .mechanism_plan import MechanismBatch,freeze_batch
     st.subheader("机制计算")
     st.caption("首批为游离酶：亲本加 3 条候选，每个 3 次独立重复，每次生产模拟 10 ns，总计 120 ns；平衡阶段另计。")
     st.write("流程：构建确认 → 装配与参数检查 → 最小化和平衡 → 分段 MD → 轨迹质量与通道、水/醇分析。")
+    equilibration_task_table()
     preparations=Store().records('preparation',context()['project_id'])
     if preparations:
         prepared=preparations[-1]
@@ -347,8 +371,8 @@ def mechanism_page():
             _do(submit_parameters)
     with st.expander("准备与运行"):
         st.caption("输入已确认的构建和参数清单；缺失残基、未支持的金属/共价状态或未通过的质量检查会列出具体缺项。")
-        action=st.selectbox("执行阶段",["parameters","solution","solution-analyze","relax-assembly","check","prepare","run","batch","analyze"],
-                            format_func=lambda x:{"parameters":"生成配体参数与数值检查","solution":"溶液密度与浓度检查","solution-analyze":"溶液分布与接触分析","relax-assembly":"修正装配碰撞并复核","check":"检查准备状态","prepare":"装配与平衡","run":"分段生产模拟","batch":"执行已冻结的独立重复批次","analyze":"通道和水/醇分析"}[x])
+        action=st.selectbox("执行阶段",["parameters","solution","solution-analyze","relax-assembly","build-system","equilibrate","check","prepare","run","batch","analyze"],
+                            format_func=lambda x:{"parameters":"生成配体参数与数值检查","solution":"溶液密度与浓度检查","solution-analyze":"溶液分布与接触分析","relax-assembly":"修正装配碰撞并复核","build-system":"构建含蛋白的显式溶液","equilibrate":"分阶段平衡与质量检查","check":"检查准备状态","prepare":"装配与平衡","run":"分段生产模拟","batch":"执行已冻结的独立重复批次","analyze":"通道和水/醇分析"}[x])
         upload=st.file_uploader("此阶段输入 JSON",type=["json"],key="mechanism_input")
         if st.button("提交机制任务",disabled=upload is None):
             _do(lambda:_submit("mechanism",{"action":action,**json.loads(upload.getvalue())}))

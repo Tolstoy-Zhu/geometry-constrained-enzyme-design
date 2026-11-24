@@ -177,6 +177,12 @@ def run_prepared(prepared_manifest,output,production_ns=10.,segment_ns=10.,seed=
 
 def execute_mechanism(output,action="check",**inputs):
     output=Path(output)
+    if action=='build-system':
+        from .protein_system import prepare_protein_system
+        return prepare_protein_system(output=output,**inputs)
+    if action=='equilibrate':
+        from .equilibration import equilibrate_system
+        return equilibrate_system(output=output,**inputs)
     if action=='parameters':
         from .ligand_parameters import parameterize
         return parameterize(output=output,**inputs)

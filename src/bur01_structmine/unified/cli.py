@@ -26,7 +26,7 @@ def add_commands(subparsers):
         cmd=subparsers.add_parser(name,help="Submit "+name+" operations")
         cmd.add_argument("action",choices=({"dataset":["fetch-catapro","fetch-sabio","map-sabio","build","features"],
                                           "train":["submit","register"],
-                                          "mechanism":["plan","parameters","solution","solution-analyze","relax-assembly","check","prepare","run","analyze","batch"],
+                                          "mechanism":["plan","parameters","solution","solution-analyze","relax-assembly","build-system","equilibrate","check","prepare","run","analyze","batch"],
                                           "kinetics":["predict"]})[name])
         cmd.add_argument("--spec",type=Path,help="JSON input fields; paths are validated and staged")
         cmd.add_argument("--input",type=Path);cmd.add_argument("--output",type=Path)

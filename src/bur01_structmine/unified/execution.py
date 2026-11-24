@@ -109,7 +109,8 @@ def submit(kind,inputs,*,project_id="default",family_id="bur01",executor="local"
 
 PATH_KEYS={"parent","fasta_path","local_msa_path","parameter_dir","config_path","reaction_config","dataset","features","cluster_file",
            "prepared_manifest","batch_manifest","msa","structure","run","input","protocol","reference",
-           'query_structure','input_tsv','topology','trajectories','channel_manifest','model_dir','source_run_dir','bundle','query_fasta'}
+           'query_structure','input_tsv','topology','trajectories','channel_manifest','model_dir','source_run_dir','bundle','query_fasta',
+           'assembly_report','protonation_reference','system_dir','prerequisite_dir'}
 def task_bundle(spec):
     """Copy only task-selected inputs. Existing result trees and private projects are never swept."""
     files={};blobs={};copied={};counter=0
@@ -231,6 +232,7 @@ class RemoteExecutor:
             (log_dir/"process.log").write_text(row["log_tail"],encoding="utf-8")
         remote_result=json.loads(row["result"]) if row.get("result") else None
         result={"remote":remote_result,"remote_updated":row["updated"]}
+        if row.get('mechanism_progress'):result['progress']=row['mechanism_progress']
         if prior_result.get("remote_updated")==row["updated"] and prior_result.get("local_output"):
             if (Path(prior_result["local_output"])/".aqua-download.json").is_file():
                 result["local_output"]=prior_result["local_output"]
