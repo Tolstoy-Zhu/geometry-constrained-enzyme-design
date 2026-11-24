@@ -65,7 +65,7 @@ def install_models() -> Path:
     return directory
 
 
-def conditional_scores(trace, positions, ligand_xyz, ligand_types, *, seed, device):
+def conditional_scores(trace, positions, ligand_xyz, ligand_types, *, seed, device, complete_sequences=None):
     """Score each requested position last, conditioned on every other parent residue."""
     import io
     try:
@@ -116,6 +116,20 @@ def conditional_scores(trace, positions, ligand_xyz, ligand_types, *, seed, devi
 
     # A fixed random decoding order is shared by all sites, except that the evaluated site is last.
     order = np.random.default_rng(seed).permutation(length) + 1
+    if complete_sequences is not None:
+        joint = []
+        features["batch_size"] = 1
+        features["randn"] = torch.as_tensor(order, dtype=torch.float32, device=device).unsqueeze(0)
+        with torch.inference_mode():
+            for sequence in complete_sequences:
+                if len(sequence) != length or set(sequence) - set(ALPHABET):
+                    raise ValueError("Complete sequence must match the parent coordinate length.")
+                features["S"] = tensor([ALPHABET.index(a) for a in sequence], torch.long)
+                result = model.score(features, use_sequence=True)
+                selected = result["log_probs"][0, torch.arange(length, device=device), features["S"][0]]
+                joint.append(float(selected.sum().cpu()))
+        return np.asarray(joint), None, {"scope": "full_sequence_autoregressive_log_likelihood",
+                                        "seed": seed, "model": backend}
     output, masked_output = [], []
     with torch.inference_mode():
         for start in range(0, len(positions), 4):

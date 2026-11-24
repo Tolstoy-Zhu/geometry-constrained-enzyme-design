@@ -3,3 +3,5 @@ ui/assets/** -text
 *.py text eol=lf
 *.json text eol=lf
 *.md text eol=lf
+*.sh text eol=lf
+scripts/unified/aqua-python text eol=lf

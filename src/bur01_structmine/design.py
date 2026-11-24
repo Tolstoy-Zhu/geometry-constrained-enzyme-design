@@ -99,19 +99,19 @@ def protein_trace(path, chain):
     return trace
 
 
-def site_policy(trace, ligand_xyz, msa_path, fixed, site_limit, radius):
-    ref = load_ca_trace(project_root() / "data/query/Bur01m.pdb", chain_id="A")
-    comparison = compare_ca_traces(ref, trace)
-    if min(comparison["qtmscore"], comparison["ttmscore"]) < 0.5 or comparison["mapped_catalytic_identity_count"] != 3:
-        raise ValueError("The parent does not pass Bur01 fold and Ser/Asp/His identity checks.")
+def site_policy(trace, ligand_xyz, msa_path, fixed, site_limit, radius, family='bur01'):
+    from .unified.families import get_profile, assess_structure
+    profile = get_profile(family)
+    assessment = assess_structure(trace, profile)
+    if not assessment["fold_pass"] or not assessment["catalytic_identity_pass"]:
+        raise ValueError(f"The parent does not pass {profile.name} fold and catalytic identity checks.")
     labels = [r.label for r in trace.residues]
-    triad = [labels.index(label) for label in comparison["mapped_catalytic_residues"].split(";")]
+    triad = [s["index"] for s in assessment["sites"]]
     core = []
-    for index, names in zip(triad, TRIAD_ATOMS):
-        atoms = trace.residues[index].atoms
-        if any(a not in atoms for a in names):
-            raise ValueError(f"Missing catalytic side-chain coordinates at {labels[index]}.")
-        core.extend(atoms[a] for a in names)
+    for site, definition in zip(assessment["sites"], profile.sites):
+        if site["missing_atoms"]:
+            raise ValueError(f"Missing catalytic side-chain coordinates at {site['residue']}.")
+        core.extend(trace.residues[site["index"]].atoms[a] for a in definition.atoms)
     core = np.asarray(core)
     if ligand_xyz.size and np.linalg.norm(ligand_xyz[:, None] - core[None], axis=-1).min() > radius:
         raise ValueError("The selected ligand context is outside the catalytic region.")
@@ -119,7 +119,7 @@ def site_policy(trace, ligand_xyz, msa_path, fixed, site_limit, radius):
         raise ValueError("Unknown fixed parent residue: " + ", ".join(sorted(set(fixed) - set(labels))))
     motif = set()
     ser = triad[0]
-    if ser >= 2 and re.fullmatch("G.S.G", trace.sequence[ser-2:ser+3]):
+    if profile.protect_serine_motif and ser >= 2 and re.fullmatch("G.S.G", trace.sequence[ser-2:ser+3]):
         motif.update(range(ser - 2, ser + 3))
     count, valid, support = alignment_support(msa_path, trace.sequence) if msa_path else (0, None, None)
     rows = []
@@ -133,11 +133,11 @@ def site_policy(trace, ligand_xyz, msa_path, fixed, site_limit, radius):
             reasons.append("catalytic_triad")
         if i in motif:
             reasons.append("serine_motif")
-        if core_d <= 4.0:
+        if core_d <= profile.contact_protection_A:
             reasons.append("catalytic_contact")
-        if r.label in fixed:
+        if r.label in fixed or i in assessment['protected_indices']:
             reasons.append("user_fixed")
-        if count and valid[i] >= 3 and valid[i] / count >= 0.70 and support[i] >= 0.85:
+        if count and valid[i] >= profile.min_homologs and valid[i] / count >= profile.conservation_coverage and support[i] >= profile.conservation_fraction:
             reasons.append("msa_conserved")
         if anchor_d > radius:
             reasons.append("outside_shell")
@@ -205,7 +205,7 @@ def propose(trace, sites, scores, control, max_edits, count, priority):
 
 def run_design(parent, output, *, chain="A", ligands=(), fixed=(), msa=None, site_limit=16,
                radius=10.0, max_edits=2, count=12, seed=17, device="cpu", priority="compatibility",
-               parent_id=None, expected_sequence=None):
+               parent_id=None, expected_sequence=None, family_id="bur01", score_combinations=True):
     if not (1 <= site_limit <= 48 and 4 < radius <= 20 and 1 <= max_edits <= 3 and 1 <= count <= 100
             and 0 <= seed < 2**32):
         raise ValueError("Invalid design settings (sites 1–48, radius (4,20], edits 1–3, count 1–100, seed uint32).")
@@ -230,13 +230,23 @@ def run_design(parent, output, *, chain="A", ligands=(), fixed=(), msa=None, sit
         if expected_sequence and trace.sequence != expected_sequence.strip().upper():
             raise ValueError("The selected coordinate chain does not match the selected candidate sequence.")
         xyz, elements = ligand_context(structure, ligands)
-        rows, sites, triad = site_policy(trace, xyz, msa_path, fixed, site_limit, radius)
+        rows, sites, triad = site_policy(trace, xyz, msa_path, fixed, site_limit, radius, family_id)
         scores, control, model = conditional_scores(trace, sites, xyz, elements, seed=seed, device=device)
         candidates, landscape = propose(trace, sites, scores, control, max_edits, count, priority)
+        if score_combinations:
+            joint, _, _ = conditional_scores(trace, sites, xyz, elements, seed=seed, device=device,
+                                              complete_sequences=[trace.sequence]+[c["sequence"] for c in candidates])
+            joint=np.asarray(joint)
+            if joint.shape!=(len(candidates)+1,) or not np.isfinite(joint).all():
+                raise ValueError('Complete-sequence scoring returned invalid values')
+            for candidate, value in zip(candidates, joint[1:]):
+                candidate["joint_log_likelihood"] = float(value)
+                candidate["joint_log_likelihood_delta"] = float(value - joint[0])
+                candidate["joint_score_scope"] = "sequence_compatibility_not_measured_epistasis"
         for name, table in (("sites", rows), ("substitutions", landscape), ("candidates", candidates)):
             pd.DataFrame(table).to_csv(run / f"{name}.tsv", sep="\t", index=False)
         (run / "candidates.fasta").write_text("".join(f">{r['candidate_id']}\n{r['sequence']}\n" for r in candidates), encoding="ascii")
-        manifest = dict(method="aqua_design_v1", parent_id=parent_id or parent.name, parent_file=structure.name,
+        manifest = dict(family_id=family_id, method="aqua_design_v1", parent_id=parent_id or parent.name, parent_file=structure.name,
                         parent_sha256=sha(structure.read_bytes()),
                         parent_sequence_sha256=sha(trace.sequence.encode()), chain=chain, ligands=list(ligands),
                         fixed=list(fixed), triad_positions=[i + 1 for i in triad], triad_labels=[trace.residues[i].label for i in triad],
@@ -270,11 +280,13 @@ def review_design(run, candidate_id, structure, chain="A", origin="unspecified",
     pair = compare_ca_traces(query, target, catalytic_query_residues=())
     # Designs have substitutions only. Direct sequence indices also support insertion-coded parent residues.
     core = []
-    for pos, names in zip(manifest["triad_positions"], TRIAD_ATOMS):
+    from .unified.families import get_profile, assess_structure
+    profile = get_profile(manifest.get("family_id", "bur01"))
+    for pos, names in zip(manifest["triad_positions"], [s.atoms for s in profile.sites]):
         residue = target.residues[pos - 1]
         core.append(np.array([residue.atoms[a] for a in names]) if all(a in residue.atoms for a in names) else None)
     def distance(i, j):
-        if core[i] is None or core[j] is None:
+        if max(i, j) >= len(core) or core[i] is None or core[j] is None:
             return None
         return float(np.linalg.norm(core[i][:, None] - core[j][None], axis=-1).min())
     report = dict(candidate_id=candidate_id, sequence_sha256=record.sequence_sha256, structure_sha256=sha(structure.read_bytes()),
@@ -292,6 +304,7 @@ def review_design(run, candidate_id, structure, chain="A", origin="unspecified",
             values = np.asarray(json.loads(confidence.read_text(encoding="utf-8")).get("plddt", []), dtype=float)
             if values.shape == (len(target.residues),) and np.all((values >= 0) & (values <= 100)):
                 report["triad_plddt"] = [float(values[p - 1]) for p in manifest["triad_positions"]]
+    report["family_assessment"] = assess_structure(target, profile)
     data = json.dumps(report, indent=2).encode("utf-8")
     directory = run / "reviews"
     directory.mkdir(exist_ok=True)

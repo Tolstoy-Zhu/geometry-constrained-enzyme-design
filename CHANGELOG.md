@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.6.0.dev0 Unified Engineering Preview
+
+- Added versioned project, construct, reaction, assay, task and model records in SQLite; historical results remain in their original files.
+- Added independent Bur01, CALB and GH1 family profiles, catalytic rules, residue mappings and public structure-chain examples. WASE remains specific to Bur01.
+- Connected the existing workbench and CLI to persistent local/SSH jobs, scoped cancellation, reconciled retries and cached small-result downloads. Server credentials and research data remain outside Git.
+- Added frozen CataPro and mapped SABIO-RK ingestion, measured-label filters, homology/parent groups, ESM-2 and Morgan features, independent Ridge/ExtraTrees kcat and Km training, calibration and held-out enzyme/substrate challenges.
+- Added full-combination ProteinMPNN/LigandMPNN scoring, separate from additive mutation scores, and project-scoped design/prediction history.
+- Added validated-system OpenMM adapters, environment-matched checkpoint recovery, batch budget checks, coordinate checks and per-replicate water/alcohol/channel analysis. The approved first production batch is 120 ns; it is not marked complete without actual trajectories and quality acceptance.
+- Added a local Windows launcher, model prediction tables/downloads, deployment scripts and non-GPU CI coverage. Linux TensorFlow metadata and oneDNN handling preserve the prior model comparison tolerances.
+- Engineering, predictive performance, full-NR acceptance and mechanism sampling retain separate release states. See `docs/AQUA_UNIFIED_UPGRADE.md` for operation and outstanding acceptance work.
+
 ### 0.5.0.dev0 Evidence Workbench
 
 - WASE-screen 0.2.0: mapped Ser-centered motif, atom-aware geometry, explicit information missingness, null predictive error, component explanations and high-priority exclusions.

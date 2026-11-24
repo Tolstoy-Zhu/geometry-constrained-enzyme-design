@@ -261,7 +261,10 @@ def _structure_manifest(request: NrExpansionRequest) -> tuple[Path, RunManifest]
     )
     if not path.is_file():
         raise FileNotFoundError(f"Structure run manifest not found: {path}")
-    return path, RunManifest.model_validate_json(path.read_text(encoding="utf-8"))
+    from .unified.artifacts import read_manifest
+    data=read_manifest(path,"_run_dir")
+    data.pop("_run_dir",None);data.pop("_manifest_path",None)
+    return path, RunManifest.model_validate(data)
 
 
 def _clean_sequence(value: object) -> str:
@@ -458,17 +461,15 @@ def _write_hit_fasta(frame: pd.DataFrame, path: Path) -> None:
     write_fasta(records, path)
 
 
-def _reference_site_positions() -> dict[str, tuple[int, str]]:
-    trace = load_ca_trace(resolve_path("data/query/Bur01m.pdb"), chain_id="A")
+def _reference_site_positions(family_id="bur01") -> dict[str, tuple[int, str]]:
+    from .unified.families import get_profile,reference
+    profile=get_profile(family_id)
+    trace = load_ca_trace(reference(profile), chain_id=profile.reference_chain)
     index_by_number = {
         residue.residue_number: index + 1 for index, residue in enumerate(trace.residues)
     }
     sites: dict[str, tuple[int, str]] = {}
-    for label, number, amino_acid in (
-        ("S111", 111, "S"),
-        ("D241", 241, "D"),
-        ("H274", 274, "H"),
-    ):
+    for label, number, amino_acid in ((f"{s.amino_acid}{s.residue_number}",s.residue_number,s.amino_acid) for s in profile.sites):
         query_position = index_by_number.get(number)
         if query_position is None:
             raise ValueError(f"8HFW reference residue {label} is missing from chain A")
@@ -476,8 +477,8 @@ def _reference_site_positions() -> dict[str, tuple[int, str]]:
     return sites
 
 
-def map_catalytic_alignment(row: pd.Series | None) -> dict[str, Any]:
-    sites = _reference_site_positions()
+def map_catalytic_alignment(row: pd.Series | None, family_id="bur01") -> dict[str, Any]:
+    sites = _reference_site_positions(family_id)
     if row is None:
         return {
             "identity_count": 0,
@@ -526,8 +527,8 @@ def map_catalytic_alignment(row: pd.Series | None) -> dict[str, Any]:
         }
     return {
         "identity_count": identities,
-        "complete": identities == 3,
-        "status": "complete" if identities == 3 else ("partial" if identities else "unmapped"),
+        "complete": identities == len(sites),
+        "status": "complete" if identities == len(sites) else ("partial" if identities else "unmapped"),
         "mapping": mapped,
     }
 
@@ -538,6 +539,7 @@ def _screen_candidates(
     cluster_map: pd.DataFrame,
     direct: pd.DataFrame,
     filters: dict[str, Any],
+    family_id="bur01",
 ) -> pd.DataFrame:
     by_sequence_id = deduplicated.set_index("sequence_id", drop=False)
     direct_by_target = {
@@ -556,7 +558,7 @@ def _screen_candidates(
         if isinstance(source, pd.DataFrame):
             source = source.iloc[0]
         alignment = direct_by_target.get(representative_id)
-        mapping = map_catalytic_alignment(alignment)
+        mapping = map_catalytic_alignment(alignment,family_id)
         length = len(sequence)
         x_fraction = sequence.count("X") / length if length else 1.0
         evalue = float(source.get("evalue")) if pd.notna(source.get("evalue")) else None
@@ -573,8 +575,9 @@ def _screen_candidates(
             reasons.append("length")
         if x_fraction > float(filters["max_x_fraction"]):
             reasons.append("ambiguous_sequence")
-        if mapping["identity_count"] < int(filters["required_catalytic_identities"]):
-            reasons.append("catalytic_triad")
+        required=int(filters["required_catalytic_identities"]) if family_id=="bur01" else len(_reference_site_positions(family_id))
+        if mapping["identity_count"] < required:
+            reasons.append("catalytic_triad" if family_id=="bur01" else "family_catalytic_sites")
         af2_ready = not reasons
         target = str(source.get("target", representative_id))
         title = str(source.get("theader", "") or "")
@@ -600,7 +603,8 @@ def _screen_candidates(
                 "direct_fident": alignment.get("fident") if alignment is not None else None,
                 "direct_qcov": alignment.get("qcov") if alignment is not None else None,
                 "direct_tcov": alignment.get("tcov") if alignment is not None else None,
-                "motif_gxsxg_like": has_serine_hydrolase_motif(sequence),
+                "family_id":family_id,
+                "motif_gxsxg_like": has_serine_hydrolase_motif(sequence) if family_id=="bur01" else None,
                 "mapped_catalytic_identity_count": mapping["identity_count"],
                 "catalytic_mapping_status": mapping["status"],
                 "catalytic_mapping": json.dumps(mapping["mapping"], ensure_ascii=False),
@@ -674,6 +678,9 @@ def _link_parent_nr_run(request: NrExpansionRequest, nr_run_id: str) -> None:
 
 def run_nr_expansion(request: NrExpansionRequest) -> NrRunSummary:
     config_path, config = load_nr_config(request.config_path)
+    from .unified.families import get_profile,reference
+    profile=get_profile(request.family_id)
+    config["family_id"]=request.family_id
     scope = request.database_scope or str(config["database"]["scope"])
     context = NrRunContext(request, config_path, config, scope)
     try:
@@ -789,8 +796,10 @@ def run_nr_expansion(request: NrExpansionRequest) -> NrRunSummary:
 
         direct_tsv = context.run_dir / "bur01_vs_representatives.tsv"
         canonical_query = context.run_dir / "bur01_query.fasta"
-        query_record = read_single_fasta(resolve_path("data/query/Bur01m_seed.fasta"))
-        write_fasta([("Bur01_8HFW_A", query_record.sequence)], canonical_query)
+        if request.family_id=="bur01":
+            query_sequence=read_single_fasta(resolve_path("data/query/Bur01m_seed.fasta")).sequence
+        else:query_sequence=load_ca_trace(reference(profile),chain_id=profile.reference_chain).sequence
+        write_fasta([("Bur01_8HFW_A" if request.family_id=="bur01" else request.family_id, query_sequence)], canonical_query)
         direct_fields = MMSEQS_FIELDS
         run_easy_search(
             canonical_query,
@@ -820,6 +829,7 @@ def run_nr_expansion(request: NrExpansionRequest) -> NrRunSummary:
             cluster_map,
             direct,
             config["filter"],
+            request.family_id,
         )
         candidates_tsv = context.run_dir / "nr_candidates.sequence_screen.tsv"
         candidates_xlsx = context.run_dir / "nr_candidates.sequence_screen.xlsx"

@@ -59,6 +59,8 @@ def test_same_checkpoint_mask_contrast_changes_prioritisation():
 
 def test_design_writes_only_complete_runs_and_rejects_parent_coordinates(tmp_path, monkeypatch):
     def local_scores(trace, positions, *_, **__):
+        if __.get('complete_sequences'):
+            return -np.arange(len(__['complete_sequences']),dtype=float),None,{'model':'fixture'}
         scores = np.tile(np.arange(20), (len(positions), 1))
         return scores, None, {"model": "fixture"}
     monkeypatch.setattr(design, "conditional_scores", local_scores)
@@ -66,6 +68,7 @@ def test_design_writes_only_complete_runs_and_rejects_parent_coordinates(tmp_pat
     design.run_design(PARENT, run, count=7, site_limit=8)
     table = pd.read_csv(run / "candidates.tsv", sep="\t")
     assert len(table) == table.sequence_sha256.nunique() == 7
+    assert table.joint_log_likelihood_delta.tolist()==[-1.,-2.,-3.,-4.,-5.,-6.,-7.]
     assert set(table.substitutions) == {1, 2}
     assert table.ligand_context_delta.isna().all()
     assert all(design.sha(seq.encode()) == h for seq, h in zip(table.sequence, table.sequence_sha256))

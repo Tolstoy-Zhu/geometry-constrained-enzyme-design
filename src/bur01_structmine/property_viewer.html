@@ -606,7 +606,8 @@
         Object.keys(data.parents).length === 1 &&
         Object.keys(data.parents)[0] === "405bd777924d47a1fa51e2b37d3e75985a6d9be2b262513cd94d039da959a7d5"
       )
-        $("#title").textContent = "Bur01 候选性质对照";
+        $("#title").textContent = rows.every((r) => r.reference === "8HFW:A")
+          ? "Bur01 候选性质对照" : "候选性质对照";
       if (fromFasta) {
         $("#title").textContent = absolute ? "序列性质预测" : "序列与亲本对照";
         $(".sub").textContent = absolute ? "按输入名称查看每条序列的模型预测。" : "首条输入序列为亲本，替换从序列第 1 位计数。";

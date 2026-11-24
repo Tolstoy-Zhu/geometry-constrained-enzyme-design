@@ -10,8 +10,11 @@ from .config import project_root
 def add_design_commands(subparsers):
     subparsers.add_parser("design-setup", help="Download and verify the pinned local inverse-folding assets")
     design = subparsers.add_parser("design", help="Design limited substitutions around a Bur01-like catalytic core")
-    design.add_argument("--parent", type=Path, default=project_root() / "data/query/Bur01m.pdb")
+    design.add_argument("--parent", type=Path)
     design.add_argument("--chain", default="A")
+    design.add_argument("--family", dest="family_id", default="bur01")
+    design.add_argument("--executor",default="local")
+    design.add_argument("--reaction-config")
     design.add_argument("--ligand", dest="ligands", action="append", default=[], help="Chain:resname:number, repeat for multiple ligands")
     design.add_argument("--fixed", action="append", default=[], help="Extra protected parent residue such as A240")
     design.add_argument("--msa", type=Path, help="Aligned FASTA/A3M starting with the parent")
@@ -43,6 +46,15 @@ def dispatch_design(args):
         else:
             options = vars(args).copy()
             options.pop("command")
+            executor=options.pop("executor")
+            reaction=options.pop("reaction_config")
+            from .unified.families import get_profile,reference
+            options['parent']=options['parent'] or reference(get_profile(options['family_id']))
+            if executor!="local" or reaction:
+                from .unified.execution import submit
+                options.pop("output")
+                print(submit("design",options,family_id=options["family_id"],executor=executor,reaction_config=reaction))
+                return 0
             options["output"] = options["output"] or project_root() / "results/designs" / make_run_id("design")
             print(run_design(**options))
         return 0

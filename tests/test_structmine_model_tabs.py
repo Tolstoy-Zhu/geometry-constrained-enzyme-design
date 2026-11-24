@@ -31,7 +31,7 @@ def test_mined_sequence_replaces_old_parent_draft(tmp_path, monkeypatch):
     test.session_state["web_parent"] = True
     test.session_state["web_source"] = "设计批次"
     test.run()
-    assert [tab.label for tab in test.tabs] == ["候选", "结构", "序列设计", "性质预测", "历史"]
+    assert [tab.label for tab in test.tabs] == ["候选", "结构", "序列设计", "性质预测", "历史",'项目与任务','机制计算','模型评估']
     assert not test.text_area
     test.button(key="handoff").click().run()
     assert not test.exception

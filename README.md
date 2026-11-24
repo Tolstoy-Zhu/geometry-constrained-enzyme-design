@@ -1,4 +1,8 @@
-# AquaEsterNet-StructMine 0.5.0.dev0
+# AquaEsterNet-StructMine 0.6.0.dev0
+
+This branch is the unified platform engineering preview. The original workbench now includes projects, family-specific catalytic rules, durable SSH jobs, kinetic-model training and evaluation, and a checked OpenMM execution/analysis interface. [Upgrade guide and acceptance status](docs/AQUA_UNIFIED_UPGRADE.md).
+
+The first mechanism batch is budgeted at **120 ns** (4 sequences × 3 repeats × 10 ns). Production requires confirmed constructs, parameters, assembly and equilibration; software completion does not mark a mechanism result as validated.
 
 ## This Update
 
@@ -8,7 +12,7 @@
 - Read-only Bur01 demonstration uses local 3D resources and verified public benchmark records. No WSL, GPU, prediction service, autostart or public tunnel is launched.
 
 [Scoring](docs/SCORING_EN.md) · [Experimental template](docs/EXPERIMENTS_EN.md) · [Demo guide](docs/DEMO_EN.md) · [Validation](docs/VALIDATION_V05.md).
-Complete-NR acceptance remains pending. This development version is local only; no GitHub publication is performed.
+Complete-NR acceptance remains pending independently of the unified platform preview.
 
 **AquaEsterNet-StructMine** is a joint structure-and-sequence mining tool for Bur01-like enzymes. It uses [PDB 8HFW](https://www.rcsb.org/structure/8HFW) chain A, Foldseek/TM-align structure evidence, NCBI NR and MMseqs2 sequence expansion, local AlphaFold2 validation, cross-database annotation, transparent WASE-screen triage, and traceable manifests.
 

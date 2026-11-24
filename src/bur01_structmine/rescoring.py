@@ -27,7 +27,7 @@ def local_candidate_path(row: pd.Series, root: Path) -> Path | None:
 
 
 def enrich_local_catalytic_evidence(frame: pd.DataFrame, query_path: Path, query_chain: str,
-                                   sites: dict[str, int], root: Path | None = None) -> pd.DataFrame:
+                                   sites: dict[str, int], root: Path | None = None, family_id="bur01") -> pd.DataFrame:
     root = root or project_root()
     out = frame.copy()
     for column in out:
@@ -48,6 +48,13 @@ def enrich_local_catalytic_evidence(frame: pd.DataFrame, query_path: Path, query
             if chain in {"", "nan", "None"}:
                 _, chain = parse_pdb_chain(str(row.get("target", ""))) if not str(row.get("target", "")).startswith("AF-") else (None, None)
             target = load_ca_trace(path, chain_id=chain)
+            from .unified.families import assess_structure
+            quality=assess_structure(target,family_id)
+            out.at[index,"family_id"]=family_id
+            out.at[index,"family_structure_review"]=json.dumps(quality,ensure_ascii=False)
+            out.at[index,"family_structure_review_pass"]=bool(quality["fold_pass"] and quality["catalytic_identity_pass"]
+                and all(not item["missing_atoms"] for item in quality["sites"])
+                and all(item["status"]=="compatible" for item in quality["geometry"]))
             evidence = compare_ca_traces(query, target, reference)
             # Preserve Foldseek metrics; TM-align is only the provenance for this mapping.
             for field, value in evidence.items():
@@ -68,22 +75,25 @@ def enrich_local_catalytic_evidence(frame: pd.DataFrame, query_path: Path, query
 def rescore_run(run_dir: str | Path, output_root: str | Path | None = None) -> Path:
     source = Path(run_dir).resolve()
     manifest_path = source / "run_manifest.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    from .unified.artifacts import read_manifest,resolve_table_paths
+    manifest = read_manifest(manifest_path,"_run_dir")
     table_path = Path(manifest["artifacts"]["annotated_tsv"])
     if not table_path.is_file():
         table_path = source / table_path.name
     original_hash = file_sha256(table_path)
-    frame = pd.read_csv(table_path, sep="\t")
+    frame = resolve_table_paths(pd.read_csv(table_path, sep="\t"),table_path.parent)
     sites = manifest.get("catalytic_reference_sites")
     if not sites and not manifest.get("parent_prediction_id"):
         sites = {"S111": 111, "D241": 241, "H274": 274} if manifest.get("query_pdb_id", "").upper() == "8HFW" else {}
     query = Path(manifest["query_path"])
-    enriched = enrich_local_catalytic_evidence(frame, query, manifest.get("query_chain") or "A", sites) if query.is_file() else frame.copy()
-    output = add_candidate_scores(enriched)
+    from .unified.families import scope_scores
+    family_id=manifest.get("config_snapshot",{}).get("family_id","bur01")
+    enriched = enrich_local_catalytic_evidence(frame, query, manifest.get("query_chain") or "A", sites,family_id=family_id) if query.is_file() else frame.copy()
+    output = scope_scores(add_candidate_scores(enriched),family_id)
     output["source_run_id"] = manifest["run_id"]
     output["previous_wase_version"] = frame.get("wase_version", "unknown")
     output["previous_wase_screen_score"] = frame.get("wase_screen_score", float("nan"))
-    output["wase_score_delta"] = output.wase_screen_score - pd.to_numeric(output.previous_wase_screen_score, errors="coerce")
+    output["wase_score_delta"] = pd.to_numeric(output.wase_screen_score,errors="coerce") - pd.to_numeric(output.previous_wase_screen_score, errors="coerce")
     destination = Path(output_root or project_root() / "results" / "rescores") / make_run_id("rescore")
     destination.mkdir(parents=True, exist_ok=False)
     safe_table(output).to_csv(destination / "rescored.tsv", sep="\t", index=False)

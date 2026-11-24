@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from .config import project_root
-from .design_view import design_root, render_inputs
+from .design_view import design_root, design_runs, render_inputs
 from .property_assets import ASSETS, asset_root, runtime_python
 from .property_fasta import collect_fasta
 from .property_jobs import PropertyJobs
@@ -50,7 +50,8 @@ def heading(title, subtitle):
 
 @st.cache_resource
 def jobs():
-    return PropertyJobs()
+    from .unified.services import DurablePropertyJobs
+    return DurablePropertyJobs()
 
 
 def go(section):
@@ -58,7 +59,15 @@ def go(section):
 
 
 def load_example():
-    st.session_state["web_fasta"] = (project_root() / "data/query/Bur01m_seed.fasta").read_text(encoding="utf-8")
+    family_id=st.session_state.get("aqua_family","bur01")
+    if family_id=="bur01":
+        text=(project_root() / "data/query/Bur01m_seed.fasta").read_text(encoding="utf-8")
+    else:
+        from .unified.families import get_profile,reference
+        from .structure_search import load_ca_trace
+        family=get_profile(family_id)
+        text=">"+family.family_id+"_reference\n"+load_ca_trace(reference(family),chain_id=family.reference_chain).sequence+"\n"
+    st.session_state["web_fasta"] = text
     st.session_state["_web_upload_revision"] = st.session_state.get("_web_upload_revision", 0) + 1
 
 
@@ -73,7 +82,8 @@ def predict_page():
 
 
 def prediction_form(open_section):
-    available = sorted((p.parent.name for p in design_root().glob("*/manifest.json")), reverse=True)
+    batches=design_runs()
+    available = sorted(batches, reverse=True)
     pending = st.session_state.pop("_web_use_design", None)
     fasta = st.session_state.pop("_web_use_sequence", None)
     if pending:
@@ -91,7 +101,10 @@ def prediction_form(open_section):
     with left.container(border=True):
         if source == "序列输入":
             st.subheader("蛋白序列")
-            st.button("载入 Bur01 亲本", on_click=load_example, key="web_example")
+            from .unified.families import get_profile
+            family=get_profile(st.session_state.get("aqua_family","bur01"))
+            example_label="载入 Bur01 亲本" if family.family_id=="bur01" else "载入 "+family.name+"参考序列"
+            st.button(example_label, on_click=load_example, key="web_example")
             text = st.text_area(
                 "粘贴序列或多条 FASTA",
                 key="web_fasta",
@@ -151,11 +164,12 @@ def prediction_form(open_section):
             "**EnzRank**　每种底物的独立配对分数"
         )
         ready = runtime_python().is_file() and all((asset_root() / p).is_file() for p in ASSETS)
+        ready = ready or st.session_state.get('aqua_executor','local')!='local'
         if not ready:
             st.info(
                 "本机尚未装全性质模型。请先运行 python -m bur01_structmine.cli properties-setup --install-runtime。"
             )
-        if st.button("提交本地预测", type="primary", width="stretch", disabled=not ready or bool(input_error)):
+        if st.button("提交性质预测", type="primary", width="stretch", disabled=not ready or bool(input_error)):
             try:
                 substrates = parse_substrates([s.strip() for s in raw.splitlines() if s.strip()])
                 if source == "序列输入":
@@ -171,7 +185,7 @@ def prediction_form(open_section):
                     job = jobs().submit(
                         "、".join(selected),
                         profile_runs,
-                        directories=[design_root() / s for s in selected],
+                        directories=[batches[s] for s in selected],
                         substrates=substrates,
                     )
             except ValueError as exc:
@@ -234,7 +248,7 @@ def watch_job(key):
         st.rerun()
     indicator = st.status(job.message, state="running", expanded=True)
     indicator.write(job.title)
-    indicator.caption("本机正在处理任务。可以切换页面，稍后从任务记录打开结果。")
+    indicator.caption("后台正在处理任务，关闭网页不会终止计算。远端结果可在项目与任务页同步。")
 
 
 def results_page():
@@ -244,8 +258,16 @@ def results_page():
 
 def prediction_history(open_section):
     current = {j.key: j for j in jobs().snapshot()}
-    saved = sorted(profiles_root().glob("*/manifest.json"), key=lambda p: p.stat().st_mtime_ns, reverse=True)
+    from .unified.store import Store
+    from pathlib import Path
+    project=st.session_state.get('aqua_project','default')
+    saved = list(profiles_root().glob("*/manifest.json")) if project=='default' else []
+    saved.extend(Path(r['path']) for r in Store().records('history',project)
+                 if r.get('area')=='properties' and Path(r['path']).is_file())
+    saved = sorted(set(saved), key=lambda p: p.stat().st_mtime_ns, reverse=True)
     reports = {p.parent.name: p.parent for p in saved if (p.parent / "index.html").is_file()}
+    from .unified.services import property_reports
+    reports.update(property_reports(project_id=st.session_state.get('aqua_project','default')))
     keys = list(current) + [key for key in reports if key not in current]
     if not keys:
         st.info("还没有预测记录。")
@@ -258,7 +280,8 @@ def prediction_history(open_section):
     requested = st.query_params.get("run")
     if requested in keys and st.session_state.get("web_report_choice") != requested:
         st.session_state["web_report_choice"] = requested
-    states = {"queued": "排队中", "running": "计算中", "failed": "失败", "complete": "已完成"}
+    states = {"queued": "排队中", "running": "计算中", "failed": "失败", "complete": "已完成",
+              'blocked':'待连接','interrupted':'中断','cancelled':'已取消'}
 
     def label(key):
         if key in current:
@@ -275,8 +298,8 @@ def prediction_history(open_section):
     job = current.get(selected)
     if job and job.state in {"running", "queued"}:
         watch_job(selected)
-    elif job and job.state == "failed":
-        st.error("本次预测失败。 " + job.message)
+    elif job and job.state in {'failed','interrupted','blocked','cancelled'}:
+        st.warning(job.message+'；可在项目与任务页重新连接、查看日志或重试。')
         if st.button("返回修改输入"):
             open_section("predict")
     elif selected in reports:

@@ -18,7 +18,7 @@ def test_web_opens_new_submission_with_no_saved_runs(tmp_path, monkeypatch):
     monkeypatch.setenv("AQUA_DESIGN_ROOT", str(tmp_path / "designs"))
     test = AppTest.from_file(str(project_root() / "ui/properties_app.py")).run(timeout=30)
     assert not test.exception
-    assert any(button.label == "提交本地预测" for button in test.button)
+    assert any(button.label == "提交性质预测" for button in test.button)
     test.text_area(key="web_fasta").input(">parent\nACDE\n>candidate\nACGE")
     test.checkbox(key="web_parent").check().run(timeout=30)
     assert not test.exception

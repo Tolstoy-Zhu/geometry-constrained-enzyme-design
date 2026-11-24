@@ -121,6 +121,7 @@ class OutputConfig(BaseModel):
 
 
 class ProjectConfig(BaseModel):
+    family_id: str = 'bur01'
     model_config = ConfigDict(extra="allow")
 
     query: QueryConfig
@@ -139,6 +140,7 @@ class ProjectConfig(BaseModel):
 
 
 class RunRequest(BaseModel):
+    family_id: str = 'bur01'
     config_path: str = "config.yaml"
     run_id: str | None = None
     query_structure: str | None = None
@@ -218,6 +220,7 @@ class RunSummary(BaseModel):
 
 
 class PredictionRequest(BaseModel):
+    family_id: str = 'bur01'
     """Validated monomer-only AlphaFold2 prediction request."""
 
     fasta_path: str | None = None
@@ -258,7 +261,7 @@ class PredictionRequest(BaseModel):
     def validate_catalytic_override(cls, value: dict[str, int] | None) -> dict[str, int] | None:
         if value is None:
             return None
-        expected = {"S111", "D241", "H274"}
+        expected = {k for k in value if re.fullmatch(r"[ACDEFGHIKLMNPQRSTVWY][1-9][0-9]*", k)}
         unknown = set(value) - expected
         if unknown:
             raise ValueError(f"unknown catalytic override labels: {', '.join(sorted(unknown))}")
@@ -336,6 +339,7 @@ class NrExpansionRequest(BaseModel):
     """Validated request for sequence-space expansion from a structure run."""
 
     source_run_id: str
+    family_id: str = "bur01"
     config_path: str = "configs/nr_local_demo.yaml"
     nr_run_id: str | None = None
     output_root: str = "results/nr_runs"
@@ -366,7 +370,7 @@ class NrCandidateRecord(BaseModel):
     qcov: float | None = None
     tcov: float | None = None
     motif_gxsxg_like: bool = False
-    mapped_catalytic_identity_count: int = Field(default=0, ge=0, le=3)
+    mapped_catalytic_identity_count: int = Field(default=0, ge=0)
     catalytic_mapping_status: str = ""
     sequence_screen_status: str = ""
     af2_ready: bool = False

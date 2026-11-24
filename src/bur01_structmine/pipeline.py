@@ -200,7 +200,7 @@ def _run_or_load_source(
         catalytic_residues = tuple(
             (int(position), label[0].upper())
             for label, position in site_map.items()
-            if label and label[0].upper() in {"S", "D", "H"}
+            if label and label[0].upper() in set("ACDEFGHIKLMNPQRSTVWY")
         )
         run_local_tm_search(
             query_pdb,
@@ -295,22 +295,42 @@ def run_pipeline(
     query_chain: str | None = None,
     parent_prediction_id: str | None = None,
     catalytic_reference_sites: dict[str, int] | None = None,
+    family_id: str | None = None,
 ) -> RunSummary:
     """Run search, filtering, annotation, WASE-screen, and versioned export."""
     cfg = load_config(config_path)
+    family_id = family_id or cfg.get("family_id", "bur01")
+    cfg["family_id"] = family_id
+    from .unified.families import get_profile, reference, assess_structure, scope_scores
+    family = get_profile(family_id)
+    if family_id != "bur01" and not query_structure:
+        query_structure = str(reference(family))
+        query_chain = family.reference_chain
     config_file = resolve_path(config_path)
     query_cfg = cfg["query"]
     if query_structure:
         query_pdb = resolve_path(query_structure)
+        changed_query=query_pdb.resolve()!=resolve_path(query_cfg["pdb_file"]).resolve()
         query_cfg["pdb_file"] = str(query_pdb)
-        if parent_prediction_id:
+        if parent_prediction_id or changed_query:
             query_cfg["pdb_id"] = None
             query_cfg["residue_range"] = None
             query_cfg["source_url"] = None
+        if family_id!="bur01" and query_pdb.resolve()==reference(family).resolve():
+            url=next((u for u in family.sources if "rcsb.org/structure/" in u),None)
+            query_cfg["pdb_id"]=url.rstrip("/").rsplit("/",1)[-1] if url else None
+            query_cfg["source_url"]=url
     else:
         query_pdb = resolve_path(query_cfg["pdb_file"])
     selected_query_chain = query_chain if query_chain is not None else query_cfg.get("chain")
     query_cfg["chain"] = selected_query_chain
+    if catalytic_reference_sites is None and family_id != "bur01":
+        from .structure_search import load_ca_trace
+        assessment = assess_structure(load_ca_trace(query_pdb, selected_query_chain), family)
+        catalytic_reference_sites = {f"{definition.amino_acid}{definition.residue_number}":
+                                    load_ca_trace(query_pdb, selected_query_chain).residues[site["index"]].residue_number
+                                    for definition, site in zip(family.sites, assessment["sites"])
+                                    if site["identity_pass"]}
     if catalytic_reference_sites is None:
         catalytic_reference_sites = (
             {"S111": 111, "D241": 241, "H274": 274}
@@ -450,8 +470,9 @@ def run_pipeline(
         from .rescoring import enrich_local_catalytic_evidence
         annotated_df = enrich_local_catalytic_evidence(
             annotated_df, query_pdb, selected_query_chain, catalytic_reference_sites,
+            family_id=family_id,
         )
-        annotated_df = add_candidate_scores(annotated_df)
+        annotated_df = scope_scores(add_candidate_scores(annotated_df), family_id)
         annotated_xlsx = out_prefix.with_suffix(".annotated.xlsx")
         annotated_tsv = out_prefix.with_suffix(".annotated.tsv")
         annotated_df.to_csv(annotated_tsv, sep="\t", index=False)
@@ -463,7 +484,7 @@ def run_pipeline(
         context.add_artifact("annotated_tsv", annotated_tsv)
         context.add_artifact("candidate_fasta", candidate_fasta)
         context.add_artifact("ncbi_script", ncbi_script)
-        context.emit("score", "completed", "WASE-screen v0.2.0 scoring completed", progress=0.92, artifact=annotated_xlsx)
+        context.emit("score", "completed", "WASE-screen v0.2.0 scoring completed" if family_id=="bur01" else "Family-specific structure review completed", progress=0.92, artifact=annotated_xlsx)
 
         summary = context.complete(len(raw_df), len(filtered_df), len(annotated_df))
         _write_latest_pointer(run_root, summary)
@@ -486,12 +507,14 @@ def reannotate_run(run_dir: str | Path) -> pd.DataFrame:
     manifest_path = run_dir / "run_manifest.json"
     if not manifest_path.exists():
         raise FileNotFoundError(f"Run manifest not found: {manifest_path}")
-    manifest = RunManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+    from .unified.artifacts import read_manifest,resolve_table_paths
+    rebased=read_manifest(manifest_path,"_run_dir")
+    manifest = RunManifest.model_validate({k:v for k,v in rebased.items() if not k.startswith("_")})
     cfg = manifest.config_snapshot
     filtered_path = Path(manifest.artifacts.get("filtered_tsv", ""))
     if not filtered_path.exists():
         raise FileNotFoundError(f"Filtered result table not found: {filtered_path}")
-    filtered_df = pd.read_csv(filtered_path, sep="\t")
+    filtered_df = resolve_table_paths(pd.read_csv(filtered_path, sep="\t"),filtered_path.parent)
     annotation_cfg = cfg.get("annotation", {})
     annotated_df = annotate_hits(
         filtered_df.head(int(annotation_cfg.get("max_records", 200))),
@@ -510,8 +533,10 @@ def reannotate_run(run_dir: str | Path) -> pd.DataFrame:
     sites = manifest.catalytic_reference_sites or {}
     if not sites and not manifest.parent_prediction_id and manifest.query_pdb_id.upper() == "8HFW":
         sites = {"S111": 111, "D241": 241, "H274": 274}
-    annotated_df = enrich_local_catalytic_evidence(annotated_df, Path(manifest.query_path), manifest.query_chain, sites)
-    annotated_df = add_candidate_scores(annotated_df)
+    annotated_df = enrich_local_catalytic_evidence(annotated_df, Path(manifest.query_path), manifest.query_chain, sites,
+                                                family_id=cfg.get("family_id","bur01"))
+    from .unified.families import scope_scores
+    annotated_df = scope_scores(add_candidate_scores(annotated_df), cfg.get("family_id","bur01"))
     annotated_df["source_run_id"] = source_run_id
     run_dir = run_dir.parent / make_run_id("reannotation")
     run_dir.mkdir(parents=True, exist_ok=False)

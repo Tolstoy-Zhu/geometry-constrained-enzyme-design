@@ -36,6 +36,9 @@ def add_property_commands(parsers):
     )
     profile.add_argument("--substrate", action="append", help="Name=SMILES, repeat for each substrate")
     profile.add_argument("--output", type=Path, help="New local report directory")
+    profile.add_argument("--family",default="bur01")
+    profile.add_argument("--executor",default="local")
+    profile.add_argument("--reaction-config")
     profile.add_argument(
         "--device", choices=["cpu", "cuda"], default="cpu", help="TmProt device; EnzRank uses CPU"
     )
@@ -98,6 +101,13 @@ def dispatch_property(args):
             )
         else:
             pairs = parse_substrates(args.substrate) if args.substrate else DEFAULT_SUBSTRATES
+            if args.executor!="local" or args.reaction_config:
+                from .unified.execution import submit
+                inputs={"substrates":pairs,"device":args.device}
+                if args.fasta:inputs.update(mode="fasta",text=args.fasta.read_text(encoding="utf-8-sig"),first_as_parent=args.first_as_parent)
+                else:inputs.update(mode="runs",directories=args.runs)
+                print(submit("properties",inputs,family_id=args.family,executor=args.executor,reaction_config=args.reaction_config))
+                return 0
             if args.fasta:
                 print(
                     profile_fasta(

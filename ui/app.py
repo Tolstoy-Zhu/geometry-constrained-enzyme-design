@@ -572,48 +572,21 @@ def _clean_value(value: Any) -> str:
 
 
 def scan_runs() -> list[dict[str, Any]]:
-    runs: list[dict[str, Any]] = []
-    if not RUN_ROOT.exists():
-        return runs
-    for manifest_path in RUN_ROOT.glob("*/run_manifest.json"):
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        manifest["_manifest_path"] = str(manifest_path)
-        manifest["_run_dir"] = str(manifest_path.parent)
-        runs.append(manifest)
-    return sorted(runs, key=lambda item: item.get("created_at", ""), reverse=True)
+    from bur01_structmine.unified.artifacts import scan_manifests
+    return scan_manifests("run_manifest.json", "_run_dir", RUN_ROOT,
+                          st.session_state.get("aqua_project", "default"))
 
 
 def scan_predictions() -> list[dict[str, Any]]:
-    predictions: list[dict[str, Any]] = []
-    if not PREDICTION_ROOT.exists():
-        return predictions
-    for manifest_path in PREDICTION_ROOT.glob("*/prediction_manifest.json"):
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        manifest["_manifest_path"] = str(manifest_path)
-        manifest["_prediction_dir"] = str(manifest_path.parent)
-        predictions.append(manifest)
-    return sorted(predictions, key=lambda item: item.get("created_at", ""), reverse=True)
+    from bur01_structmine.unified.artifacts import scan_manifests
+    return scan_manifests("prediction_manifest.json", "_prediction_dir", PREDICTION_ROOT,
+                          st.session_state.get("aqua_project", "default"))
 
 
 def scan_nr_runs() -> list[dict[str, Any]]:
-    nr_runs: list[dict[str, Any]] = []
-    if not NR_RUN_ROOT.exists():
-        return nr_runs
-    for manifest_path in NR_RUN_ROOT.glob("*/nr_run_manifest.json"):
-        try:
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        manifest["_manifest_path"] = str(manifest_path)
-        manifest["_nr_run_dir"] = str(manifest_path.parent)
-        nr_runs.append(manifest)
-    return sorted(nr_runs, key=lambda item: item.get("created_at", ""), reverse=True)
+    from bur01_structmine.unified.artifacts import scan_manifests
+    return scan_manifests("nr_run_manifest.json", "_nr_run_dir", NR_RUN_ROOT,
+                          st.session_state.get("aqua_project", "default"))
 
 
 def read_nr_candidates(manifest: dict[str, Any] | None) -> pd.DataFrame:
@@ -650,6 +623,10 @@ def read_prediction_events(prediction_id: str | None) -> list[dict[str, Any]]:
     if not prediction_id:
         return []
     path = PREDICTION_ROOT / prediction_id / "events.jsonl"
+    for manifest in scan_predictions():
+        if manifest.get("prediction_id")==prediction_id:
+            path=Path(manifest["_prediction_dir"])/"events.jsonl"
+            break
     if not path.is_file():
         return []
     events: list[dict[str, Any]] = []
@@ -669,7 +646,8 @@ def read_candidates(manifest: dict[str, Any] | None) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     try:
-        return pd.read_csv(path, sep="\t")
+        from bur01_structmine.unified.artifacts import resolve_table_paths
+        return resolve_table_paths(pd.read_csv(path, sep="\t"),path.parent)
     except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
         return pd.DataFrame()
 
@@ -678,6 +656,10 @@ def read_events(run_id: str | None) -> list[dict[str, Any]]:
     if not run_id:
         return []
     path = RUN_ROOT / run_id / "events.jsonl"
+    for manifest in scan_runs():
+        if manifest.get("run_id")==run_id:
+            path=Path(manifest["_run_dir"])/"events.jsonl"
+            break
     if not path.exists():
         return []
     events: list[dict[str, Any]] = []
@@ -733,6 +715,7 @@ def write_runtime_config(
     run_id: str,
 ) -> Path:
     cfg = load_config(base_config)
+    cfg["family_id"] = st.session_state.get("aqua_family","bur01")
     cfg["query"]["pdb_file"] = query_path
     cfg["query"]["chain"] = chain
     cfg["filter"].update(thresholds)
@@ -749,232 +732,109 @@ def write_runtime_config(
 
 
 def start_run(config_path: Path, run_id: str) -> None:
-    run_dir = RUN_ROOT / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    log_path = run_dir / "ui_process.log"
-    log_handle = log_path.open("w", encoding="utf-8")
-    command = [
-        sys.executable,
-        "-m",
-        "bur01_structmine.cli",
-        "run",
-        "--config",
-        str(config_path),
-        "--run-id",
-        run_id,
-    ]
-    creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    process = subprocess.Popen(
-        command,
-        cwd=ROOT,
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-        env=utf8_process_env(),
-        creationflags=creationflags,
-    )
-    st.session_state.ui_process = process
-    st.session_state.ui_log_handle = log_handle
-    st.session_state.ui_run_id = run_id
-    st.session_state.ui_log_path = str(log_path)
-    st.session_state.ui_fragment_state = "running"
+    from bur01_structmine.unified.execution import submit
+    from bur01_structmine.unified.ui import context
+    from bur01_structmine.unified.store import state_root
+    cfg=load_config(config_path)
+    task=submit('mine',dict(config_path=str(config_path),run_id=run_id,
+                query_structure=str(resolve_path(cfg['query']['pdb_file'])),query_chain=cfg['query']['chain']),**context())
+    st.session_state.ui_task_id=task
+    st.session_state.ui_run_id=run_id
+    st.session_state.ui_log_path=str(state_root()/'tasks'/task/'process.log')
+    st.session_state.ui_fragment_state='running'
 
 
 def process_state() -> tuple[str, int | None]:
-    process = st.session_state.get("ui_process")
-    if process is None:
-        return "idle", None
-    code = process.poll()
-    if code is None:
-        return "running", None
-    handle = st.session_state.get("ui_log_handle")
-    if handle and not handle.closed:
-        handle.close()
-    run_id = st.session_state.get("ui_run_id")
-    manifest_path = RUN_ROOT / run_id / "run_manifest.json" if run_id else None
-    if manifest_path and manifest_path.exists():
-        try:
-            manifest_status = json.loads(manifest_path.read_text(encoding="utf-8")).get("status")
-            if manifest_status == "cancelled":
-                return "cancelled", code
-        except (OSError, json.JSONDecodeError):
-            pass
-    return ("completed" if code == 0 else "failed"), code
+    from bur01_structmine.unified.store import Store
+    from bur01_structmine.unified.polling import schedule_sync
+    schedule_sync(st.session_state.get("aqua_project","default"))
+    task=st.session_state.get('ui_task_id')
+    if not task:return 'idle',None
+    row=Store().task(task)
+    if row['state'] in {'queued','running'}:return 'running',None
+    return ('completed',0) if row['state']=='completed' else (row['state'],1)
 
 
 def cancel_run() -> None:
-    process = st.session_state.get("ui_process")
-    if process is None or process.poll() is not None:
-        return
-    process.terminate()
-    try:
-        process.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        process.kill()
-    handle = st.session_state.get("ui_log_handle")
-    if handle and not handle.closed:
-        handle.close()
-    run_id = st.session_state.get("ui_run_id")
-    if run_id:
-        mark_run_cancelled(RUN_ROOT / run_id)
+    from bur01_structmine.unified.services import cancel_task
+    task=st.session_state.get('ui_task_id')
+    if task:cancel_task(task,st.session_state.get('aqua_project','default'))
 
 
-def start_prediction_process(
-    prediction_id: str,
-    preset: str,
-    use_templates: bool,
-    consent: bool,
-    catalytic_sites: dict[str, int],
-    fasta_path: Path | None = None,
-    candidate_run_id: str | None = None,
-    candidate_nr_run_id: str | None = None,
-    accession: str | None = None,
-    mine_after: bool = False,
-) -> None:
-    log_root = ROOT / "results" / "ui_process_logs"
-    log_root.mkdir(parents=True, exist_ok=True)
-    log_path = log_root / f"{prediction_id}.log"
-    log_handle = log_path.open("w", encoding="utf-8")
-    command = [
-        sys.executable,
-        "-m",
-        "bur01_structmine.cli",
-        "predict-and-mine" if mine_after else "predict",
-    ]
-    if fasta_path is not None:
-        command.extend(["--fasta", str(fasta_path)])
-    elif candidate_nr_run_id is not None:
-        command.extend(["--nr-run", str(candidate_nr_run_id), "--accession", str(accession)])
+def start_prediction_process(prediction_id, preset, use_templates, consent, catalytic_sites,
+                             fasta_path=None,candidate_run_id=None,candidate_nr_run_id=None,
+                             accession=None,mine_after=False) -> None:
+    from bur01_structmine.unified.execution import submit
+    from bur01_structmine.unified.ui import context
+    from bur01_structmine.unified.store import state_root
+    from bur01_structmine.models import PredictionRequest
+    inputs=dict(prediction_id=prediction_id,preset=preset,use_templates=use_templates,
+                confirm_public_msa=consent,catalytic_override=catalytic_sites or None)
+    if fasta_path is not None:inputs['fasta_path']=str(fasta_path)
     else:
-        command.extend(["--candidate-run", str(candidate_run_id), "--accession", str(accession)])
-    command.extend(
-        [
-            "--preset",
-            preset,
-            "--prediction-id",
-            prediction_id,
-            "--prediction-output-root",
-            str(PREDICTION_ROOT),
-        ]
-    )
-    if mine_after:
-        command.extend(["--mining-config", "configs/alphafold_swissprot.yaml"])
-    if use_templates:
-        command.append("--templates")
-    if consent:
-        command.append("--confirm-public-msa")
-    for label, position in catalytic_sites.items():
-        command.extend(["--catalytic-site", f"{label}={position}"])
-    creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    process = subprocess.Popen(
-        command,
-        cwd=ROOT,
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-        env=utf8_process_env(),
-        creationflags=creationflags,
-    )
-    st.session_state.prediction_process = process
-    st.session_state.prediction_log_handle = log_handle
-    st.session_state.prediction_process_log = str(log_path)
-    st.session_state.active_prediction_id = prediction_id
-    st.session_state.prediction_fragment_state = "running"
+        from bur01_structmine.prediction import resolve_prediction_input
+        request=PredictionRequest(candidate_run_id=candidate_run_id,candidate_nr_run_id=candidate_nr_run_id,accession=accession)
+        record,_=resolve_prediction_input(request)
+        inputs['fasta_text']=record.to_fasta()
+    inputs['mine_after']=mine_after
+    if context()['executor']!='local':inputs['runtime_backend']='native'
+    task=submit('predict',inputs,**context())
+    st.session_state.prediction_task_id=task
+    st.session_state.active_prediction_id=prediction_id
+    st.session_state.prediction_process_log=str(state_root()/'tasks'/task/'process.log')
+    st.session_state.prediction_fragment_state='running'
 
 
 def prediction_process_state() -> tuple[str, int | None]:
-    process = st.session_state.get("prediction_process")
-    if process is None:
-        return "idle", None
-    code = process.poll()
-    if code is None:
-        return "running", None
-    handle = st.session_state.get("prediction_log_handle")
-    if handle and not handle.closed:
-        handle.close()
-    prediction_id = st.session_state.get("active_prediction_id")
-    manifest_path = PREDICTION_ROOT / prediction_id / "prediction_manifest.json" if prediction_id else None
-    if manifest_path and manifest_path.is_file():
-        try:
-            status = json.loads(manifest_path.read_text(encoding="utf-8")).get("status", "")
-            if status in {"completed", "failed", "cancelled"}:
-                return status, code
-        except (OSError, json.JSONDecodeError):
-            pass
-    return ("completed" if code == 0 else "failed"), code
+    from bur01_structmine.unified.store import Store
+    from bur01_structmine.unified.polling import schedule_sync
+    schedule_sync(st.session_state.get("aqua_project","default"))
+    task=st.session_state.get('prediction_task_id')
+    if not task:return 'idle',None
+    row=Store().task(task)
+    if row['state'] in {'queued','running'}:return 'running',None
+    return ('completed',0) if row['state']=='completed' else (row['state'],1)
 
 
 def cancel_prediction_process() -> None:
-    process = st.session_state.get("prediction_process")
-    prediction_id = st.session_state.get("active_prediction_id")
-    if process is None or process.poll() is not None:
-        return
-    prediction_dir = PREDICTION_ROOT / prediction_id if prediction_id else None
-    if prediction_dir and prediction_dir.exists():
-        request_prediction_cancel(prediction_dir)
-        try:
-            process.wait(timeout=8)
-        except subprocess.TimeoutExpired:
-            process.terminate()
-    else:
-        process.terminate()
-    handle = st.session_state.get("prediction_log_handle")
-    if handle and not handle.closed:
-        handle.close()
+    from bur01_structmine.unified.services import cancel_task
+    task=st.session_state.get('prediction_task_id')
+    if task:cancel_task(task,st.session_state.get('aqua_project','default'))
 
 
 def start_nr_process(task_id: str, command: list[str]) -> None:
-    log_root = ROOT / "results" / "ui_process_logs"
-    log_root.mkdir(parents=True, exist_ok=True)
-    log_path = log_root / f"{task_id}.log"
-    log_handle = log_path.open("w", encoding="utf-8")
-    creationflags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-    process = subprocess.Popen(
-        [sys.executable, "-m", "bur01_structmine.cli", *command],
-        cwd=ROOT,
-        stdout=log_handle,
-        stderr=subprocess.STDOUT,
-        env=utf8_process_env(),
-        creationflags=creationflags,
-    )
-    st.session_state.nr_process = process
-    st.session_state.nr_log_handle = log_handle
-    st.session_state.nr_process_log = str(log_path)
-    st.session_state.nr_task_id = task_id
+    from bur01_structmine.unified.execution import submit
+    from bur01_structmine.unified.ui import context
+    from bur01_structmine.unified.store import Store
+    inputs={"arguments":command}
+    for flag,key in {"--config":"config_path","--bundle":"bundle","--query-fasta":"query_fasta","--fasta":"fasta_path"}.items():
+        if flag in command:
+            path=Path(command[command.index(flag)+1])
+            inputs[key]=str(path if path.is_absolute() else ROOT/path)
+    if "--source-run" in command:
+        identifier=command[command.index("--source-run")+1]
+        source=next((r for r in scan_runs() if r["run_id"]==identifier),None)
+        if source:inputs["source_run_dir"]=source["_run_dir"]
+    identifier=submit("nr",inputs,**context())
+    st.session_state.nr_task_id=identifier
+    st.session_state.nr_process_log=str(Store().path.parent/"tasks"/identifier/"process.log")
 
 
 def nr_process_state() -> tuple[str, int | None]:
-    process = st.session_state.get("nr_process")
-    if process is None:
-        return "idle", None
-    code = process.poll()
-    if code is None:
-        return "running", None
-    handle = st.session_state.get("nr_log_handle")
-    if handle and not handle.closed:
-        handle.close()
-    return ("completed" if code == 0 else "failed"), code
+    from bur01_structmine.unified.store import Store
+    from bur01_structmine.unified.polling import schedule_sync
+    schedule_sync(st.session_state.get("aqua_project","default"))
+    task=st.session_state.get("nr_task_id")
+    if not task:return "idle",None
+    row=Store().task(task)
+    if row["state"] in {"queued","running"}:return "running",None
+    return ("completed",0) if row["state"]=="completed" else ("failed",1)
 
 
 def cancel_nr_process() -> None:
-    process = st.session_state.get("nr_process")
-    if process is None or process.poll() is not None:
-        return
-    if os.name == "nt":
-        subprocess.run(
-            ["taskkill.exe", "/PID", str(process.pid), "/T", "/F"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            check=False,
-        )
-    else:
-        process.terminate()
-    try:
-        process.wait(timeout=8)
-    except subprocess.TimeoutExpired:
-        process.kill()
-    handle = st.session_state.get("nr_log_handle")
-    if handle and not handle.closed:
-        handle.close()
+    from bur01_structmine.unified.services import cancel_task
+    task=st.session_state.get("nr_task_id")
+    if task:cancel_task(task,st.session_state.get("aqua_project","default"))
 
 
 @st.fragment(run_every=FRAGMENT_RUN_EVERY)
@@ -1227,7 +1087,10 @@ if remote_access is not None and st.sidebar.button("退出在线会话 / Sign ou
     st.rerun()
 
 st.sidebar.header(tx("settings"))
-query_path = st.sidebar.text_input(tx("query"), value="data/query/Bur01m.pdb")
+from bur01_structmine.unified.ui import project_sidebar
+from bur01_structmine.unified.families import get_profile
+active_family = project_sidebar()
+query_path = st.sidebar.text_input(tx("query"), value=active_family.reference_pdb,key='family_query_'+active_family.family_id)
 query_chain = st.sidebar.text_input(tx("chain"), value="A", max_chars=4)
 config_key = st.sidebar.selectbox(
     tx("database"),
@@ -1270,6 +1133,9 @@ blocking_fails = [
     for check in preflight_fails
     if not (config_key == "benchmark_foldseek" and check["name"] == "database_benchmark_v01")
 ]
+remote_execution = st.session_state.get('aqua_executor','local')!='local'
+if remote_execution:
+    blocking_fails=[]
 state, exit_code = process_state()
 prediction_state, prediction_exit_code = prediction_process_state()
 nr_state, nr_exit_code = nr_process_state()
@@ -1278,7 +1144,7 @@ st.title("AquaEsterNet-StructMine")
 service_label = f"  |  {tx('service_mode')}" if os.environ.get("AQUA_UI_SERVICE") == "1" else ""
 if remote_access is not None:
     service_label += f"  |  {tx('online_mode')}"
-st.caption(f"v0.5.0.dev0  |  Structure + NR + Local AlphaFold2-PTM  |  PDB 8HFW chain A  |  WASE-screen v0.2.0{service_label}")
+st.caption(f"v0.6.0.dev0 · 统一平台工程预览  |  {active_family.name}  |  项目与远端任务{service_label}")
 
 tabs, design_tab, property_tab = workbench_tabs(
     [
@@ -1297,21 +1163,22 @@ tabs, design_tab, property_tab = workbench_tabs(
 with tabs[0]:
     st.subheader(tx("workbench"))
     metric_columns = st.columns(4)
-    metric_columns[0].metric(tx("query_metric"), f"8HFW:{query_chain or 'A'}")
+    metric_columns[0].metric(tx("query_metric"), active_family.name + ":" + (query_chain or "A"))
     metric_columns[1].metric(tx("database_metric"), tx(config_key))
-    metric_columns[2].metric(tx("environment_metric"), tx("ready") if not blocking_fails else tx("blocked"))
+    metric_columns[2].metric(tx("environment_metric"), "远端执行" if remote_execution else (tx("ready") if not blocking_fails else tx("blocked")))
     metric_columns[3].metric(tx("candidates_metric"), len(candidates))
 
     dot_color = COLORS["green"] if not blocking_fails else COLORS["red"]
-    status_text = tx("ready") if not blocking_fails else f"{tx('blocked')} · {len(blocking_fails)}"
+    status_text = "服务器：" + st.session_state.aqua_executor if remote_execution else (tx("ready") if not blocking_fails else f"{tx('blocked')} · {len(blocking_fails)}")
+    warning_text = "运行能力见项目与任务中的服务器检查" if remote_execution else f"{tx('warnings')}: {len(preflight_warnings)}"
     st.markdown(
-        f'<div class="status-line"><span class="status-dot" style="background:{dot_color}"></span><strong>{tx("preflight")}</strong><span>{status_text}</span><span>{tx("warnings")}: {len(preflight_warnings)}</span></div>',
+        f'<div class="status-line"><span class="status-dot" style="background:{dot_color}"></span><strong>{tx("preflight")}</strong><span>{status_text}</span><span>{warning_text}</span></div>',
         unsafe_allow_html=True,
     )
     if blocking_fails:
         for check in blocking_fails:
             st.error(doctor_message(check), icon=":material/error:")
-    for check in preflight_fails:
+    for check in ([] if remote_execution else preflight_fails):
         if check not in blocking_fails:
             st.warning(doctor_message(check), icon=":material/database:")
 
@@ -1622,7 +1489,8 @@ with tabs[1]:
                 value=0.60,
                 step=0.05,
             )
-            triad_only = filter_columns[1].toggle(tx("nr_triad"), value=False)
+            nr_family=get_profile(selected_nr_manifest.get("config_snapshot",{}).get("family_id","bur01"))
+            triad_only = filter_columns[1].toggle("催化位点完整" if st.session_state.language=="zh" else "Complete catalytic sites", value=False)
             af2_only = filter_columns[2].toggle(tx("nr_af2_ready"), value=False)
             filtered_nr = selected_nr_candidates.copy()
             filtered_nr = filtered_nr[
@@ -1635,7 +1503,7 @@ with tabs[1]:
                         filtered_nr["mapped_catalytic_identity_count"],
                         errors="coerce",
                     ).fillna(0)
-                    == 3
+                    == len(nr_family.sites)
                 ]
             if af2_only and "af2_ready" in filtered_nr:
                 filtered_nr = filtered_nr[
@@ -1680,7 +1548,7 @@ with tabs[1]:
                     width="small",
                 ),
                 "mapped_catalytic_identity_count": st.column_config.NumberColumn(
-                    "三联体" if st.session_state.language == "zh" else "Triad",
+                    "催化位点" if st.session_state.language == "zh" else "Catalytic sites",
                     format="%d / 3",
                     width="small",
                 ),
@@ -1776,6 +1644,7 @@ with tabs[2]:
         check["name"]: check for check in preflight["checks"] if check["name"] in {"wsl_gpu", "colabfold", "jax_cuda"}
     }
     prediction_blockers = [check for check in prediction_checks.values() if check["status"] != "pass"]
+    if st.session_state.get('aqua_executor','local')!='local':prediction_blockers=[]
     if prediction_blockers:
         for message in dict.fromkeys(doctor_message(check) for check in prediction_blockers):
             st.warning(message, icon=":material/warning:")
@@ -1922,7 +1791,8 @@ with tabs[2]:
     manual_overrides: dict[str, int] = {}
     if prediction_record is not None:
         try:
-            mapping = map_8hfw_catalytic_sites(prediction_record.sequence)
+            from bur01_structmine.unified.families import map_sequence
+            mapping = map_sequence(prediction_record.sequence,active_family.family_id)
             mapping_rows = []
             for label, site in mapping["sites"].items():
                 mapping_rows.append(
@@ -1937,8 +1807,8 @@ with tabs[2]:
             st.dataframe(pd.DataFrame(mapping_rows), hide_index=True, width="stretch", height=176)
             manual_enabled = st.toggle(tx("manual_sites"), value=False)
             if manual_enabled:
-                site_columns = st.columns(3)
-                for column, label in zip(site_columns, ("S111", "D241", "H274")):
+                site_columns = st.columns(len(mapping["sites"]))
+                for column, label in zip(site_columns, mapping["sites"]):
                     automatic = mapping["sites"][label].get("predicted_position") or 1
                     manual_overrides[label] = int(
                         column.number_input(
@@ -2268,7 +2138,9 @@ with tabs[4]:
     if st.button(model_text("打开序列设计", "Open sequence design"), key="structure_to_design"):
         open_model_tab("design")
     with st.expander(tr("底物与位点", "Substrates and sites")):
-        structure_sites_view(ROOT / "data" / "query" / "Bur01m.pdb")
+        from bur01_structmine.unified.families import reference as family_reference
+        structure_sites_view(family_reference(active_family), family_id=active_family.family_id,
+                             key="sites_" + active_family.family_id)
     st.subheader(tx("overlay"))
     if candidates.empty or not selected_manifest:
         st.info(tx("no_results"))
@@ -2280,11 +2152,13 @@ with tabs[4]:
         target_path = candidate_structure_path(row)
         query_structure = Path(selected_manifest.get("query_path", ROOT / "data" / "query" / "Bur01m.pdb"))
         target_chain = _clean_value(row.get("target_chain")) or _clean_value(row.get("chain"))
-        catalytic_site_map = selected_manifest.get("catalytic_reference_sites") or {"S111": 111, "D241": 241, "H274": 274}
+        catalytic_site_map = selected_manifest.get("catalytic_reference_sites") or {
+            f"{site.amino_acid}{site.residue_number}":site.residue_number
+            for site in get_profile(selected_manifest.get("config_snapshot",{}).get("family_id","bur01")).sites}
         catalytic_query_residues = tuple(
             (int(position), label[0].upper())
             for label, position in catalytic_site_map.items()
-            if label and label[0].upper() in {"S", "D", "H"}
+            if label and label[0].upper() in set("ACDEFGHIKLMNPQRSTVWY")
         )
         catalytic_numbers = tuple(position for position, _ in catalytic_query_residues)
         if target_path is None or not target_path.exists() or not query_structure.exists():
@@ -2375,6 +2249,8 @@ with tabs[5]:
 
 with tabs[6]:
     st.subheader(tx("diagnostic_results"))
+    if remote_execution:
+        st.caption("此表检查本机环境。远端连接与计算组件请在“项目与任务 → 计算服务器配置”检查；本机 WSL 状态不代表远端计算状态。")
     diagnostic_controls = st.columns([1, 1, 2])
     network_check = diagnostic_controls[0].toggle(tx("network"), value=False)
     if diagnostic_controls[1].button(tx("rerun_doctor"), icon=":material/medical_services:", width="stretch"):

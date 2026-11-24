@@ -8,6 +8,11 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_project_index(tmp_path, monkeypatch):
+    monkeypatch.setenv("AQUA_STATE_ROOT", str(tmp_path / "unified-state"))
+
+
 @pytest.fixture
 def fake_mmseqs_executable(tmp_path: Path) -> Path:
     source = Path(__file__).parent / "fixtures" / "fake_mmseqs.py"

@@ -19,6 +19,7 @@ def workbench_tabs(labels, after):
     properties = tr("性质预测", "Property prediction")
     split = labels.index(after) + 1
     names = [*labels[:split], design, properties, *labels[split:]]
+    names += [tr('项目与任务','Projects and tasks'),tr('机制计算','Mechanism'),tr('模型评估','Model evaluation')]
     keep_property_draft()
     destination = st.session_state.pop("_structmine_destination", None)
     if "structmine_tab" not in st.session_state and st.query_params.get("run"):
@@ -30,6 +31,11 @@ def workbench_tabs(labels, after):
     elif st.session_state.get("structmine_tab", names[0]) not in names:
         st.session_state["structmine_tab"] = names[0]
     tabs = st.tabs(names, key="structmine_tab", on_change="rerun")
+    from .unified.ui import project_page,mechanism_page,model_page,_do
+    for tab,render in zip(tabs[-3:],[project_page,mechanism_page,model_page]):
+        if tab.open:
+            with tab:_do(render)
+    tabs=tabs[:-3]
     design_tab, property_tab = tabs[split : split + 2]
     if not property_tab.open and "run" in st.query_params:
         del st.query_params["run"]

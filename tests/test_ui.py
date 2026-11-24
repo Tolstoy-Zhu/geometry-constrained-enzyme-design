@@ -27,7 +27,7 @@ def test_streamlit_workbench_opens_with_native_model_tabs(monkeypatch, tmp_path:
         "历史",
         "诊断",
         "实验评估",
+        '项目与任务','机制计算','模型评估',
     ]
     assert any(title.value == "AquaEsterNet-StructMine" for title in test.title)
     app_text = app.read_text(encoding="utf-8")
-    assert '"taskkill.exe", "/PID", str(process.pid), "/T", "/F"' in app_text

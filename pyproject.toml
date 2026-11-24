@@ -1,7 +1,7 @@
 [project]
 name = "aquaesternet-structmine"
-version = "0.5.0.dev0"
-description = "AquaEsterNet-StructMine: Bur01 structure mining, NR expansion, novelty audit, and local AlphaFold2 validation."
+version = "0.6.0.dev0"
+description = "AquaEsterNet: family-aware enzyme mining, design, prediction, durable remote computation and experimental feedback."
 requires-python = ">=3.10"
 dependencies = [
     "biopython>=1.83",

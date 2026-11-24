@@ -164,7 +164,8 @@ def experimental_view(*, demo: bool = False, key: str = "experiments", candidate
                            icon=":material/download:", key=f"{key}_export_group")
 
 
-def structure_sites_view(default_path: Path, *, key: str = "sites", read_only: bool = False) -> None:
+def structure_sites_view(default_path: Path, *, key: str = "sites", read_only: bool = False,
+                         family_id: str = "bur01") -> None:
     st.subheader(tr("底物与位点", "Substrates and sites"))
     uploaded = None if read_only else st.file_uploader(tr("上传 PDB / CIF / mmCIF", "Upload PDB / CIF / mmCIF"), type=["pdb", "cif", "mmcif"], key=f"{key}_upload")
     try:
@@ -190,7 +191,11 @@ def structure_sites_view(default_path: Path, *, key: str = "sites", read_only: b
         st.warning(tr("当前链没有蛋白残基", "No protein residues in selected chains"))
         return
     labels = dict(zip(sites.residue_id, sites.label))
-    triad_default = sites.loc[(sites.chain_id == "A") & sites.residue_number.isin([111, 241, 274]) & sites.insertion_code.eq(""), "residue_id"].tolist() if not uploaded else []
+    from .unified.families import get_profile
+    family = get_profile(family_id)
+    triad_default = sites.loc[(sites.chain_id == family.reference_chain) &
+        sites.residue_number.isin([s.residue_number for s in family.sites]) &
+        sites.insertion_code.eq(""), "residue_id"].tolist() if not uploaded else []
     triad = st.multiselect(tr("催化位点（结构编号）", "Catalytic sites (structure numbering)"), list(labels), default=triad_default,
                           format_func=labels.get, key=f"{key}_{doc.sha256}_{model_id}_triad")
     st.caption(tr("距离邻近不等于已确认氢键。", "Distance proximity is not a confirmed hydrogen bond."))

@@ -26,13 +26,31 @@ def design_root():
     return Path(os.environ.get("AQUA_DESIGN_ROOT") or project_root() / "results/designs")
 
 
-def choose_run(key):
+def design_runs():
     root = design_root()
-    runs = sorted((p.parent.name for p in root.glob("*/manifest.json")), reverse=True)
+    project=st.session_state.get('aqua_project','default')
+    paths={p.parent.name:p.parent for p in root.glob('*/manifest.json')} if project=='default' else {}
+    from .unified.store import Store
+    store=Store()
+    for record in store.records('history',project):
+        if record.get('area')=='designs':
+            path=Path(record['path'])
+            if path.is_file():paths[path.parent.name]=path.parent
+    for row in store.tasks(project):
+        if json.loads(row['spec'])['kind']!='design' or not row.get('result'):continue
+        result=json.loads(row['result'])
+        path=Path(result['local_output'])/'design' if result.get('local_output') else Path(result.get('output',''))
+        if (path/'manifest.json').is_file():paths[row['id']]=path
+    return paths
+
+
+def choose_run(key):
+    paths=design_runs()
+    runs = sorted(paths,reverse=True)
     if not runs:
         st.caption(tr("尚无本地设计记录。", "No local design runs yet."))
         return None
-    return root / st.selectbox(tr("设计批次", "Design run"), runs, key=key)
+    return paths[st.selectbox(tr("设计批次", "Design run"), runs, key=key)]
 
 
 def select_design_for_prediction():
@@ -55,8 +73,8 @@ def upload_file(upload, directory, basename):
 
 def render_local_design(candidates, predictions, open_properties):
     st.subheader(tr("结构约束序列设计", "Structure-guided sequence design"))
-    st.caption(tr("选择 Bur01、当前挖掘批次中有本地坐标的亲本，或上传结构。设计时保护催化三联体和邻近残基。",
-                  "Select Bur01, a candidate with saved coordinates, or upload a structure. The design protects the catalytic triad and nearby residues."))
+    st.caption(tr("按当前酶家族选择参考结构、候选亲本或上传结构。设计时保护该家族的催化位点及邻近残基。",
+                  "Choose a family reference, candidate parent or uploaded structure. Family catalytic sites and nearby residues are protected."))
     inputs, outputs = st.columns([1.12, 1])
     with inputs:
         try:
@@ -70,13 +88,17 @@ def render_local_design(candidates, predictions, open_properties):
         if run:
             if st.button(tr("用本批候选预测性质", "Predict properties for this design run"), type="primary",
                          key="native_profile_design"):
-                st.session_state["_web_use_design"] = run.name
+                st.session_state["_web_use_design"] = next(k for k,v in design_runs().items() if v==run)
                 open_properties("predict")
             render_results(run, predictions)
 
 
 def render_inputs(candidates, temp, *, compact=False):
-    parents = {"8HFW · Bur01": (project_root() / "data/query/Bur01m.pdb", "A", None)}
+    from .unified.families import get_profile,reference
+    from .unified.ui import context
+    from .unified.execution import submit
+    ctx=context();profile=get_profile(ctx['family_id'])
+    parents = {profile.name: (reference(profile),profile.reference_chain,None)}
     for _, row in candidates.iterrows():
         path = row.get("target_structure_path")
         seq = row.get("final_protein_sequence")
@@ -112,26 +134,26 @@ def render_inputs(candidates, temp, *, compact=False):
     count = c3.number_input(tr("候选数量上限", "Candidate limit"), 1, 100, 12, key="design_count")
     required = CHECKPOINTS["ligand_mpnn" if ligands else "protein_mpnn"]
     ready = find_spec("torch") is not None and (model_dir() / required).is_file() and (model_dir() / "model_utils.py").is_file()
+    ready = ready or ctx['executor']!='local'
     if not ready:
         st.info(tr("请先在项目环境安装 PyTorch，并运行 aquaesternet-structmine design-setup 下载权重。",
                    "Install PyTorch and run aquaesternet-structmine design-setup in the project environment."))
     if st.button(tr("生成设计序列", "Generate designs"), disabled=not ready, key="design_generate"):
-        with st.spinner(tr("正在进行本地推理…", "Running local inference…")):
-            run = run_design(parent, design_root() / make_run_id("design"), chain=chain, ligands=ligands,
-                             fixed=re.findall(r"[^,，、\s]+", fixed), msa=upload_file(msa, temp, "msa") if msa else None,
-                             site_limit=sites, max_edits=edits, count=count, priority=priority, parent_id=parent_id,
-                             expected_sequence=sequence)
-        st.session_state["design_results_run"] = run.name
-        st.success(tr("已保存本次设计。", "Design run saved."))
-        return run
+        inputs=dict(parent=str(parent),chain=chain,ligands=ligands,fixed=re.findall(r'[^,，、\s]+',fixed),
+                    msa=str(upload_file(msa,temp,'msa')) if msa else None,site_limit=sites,max_edits=edits,
+                    count=count,priority=priority,parent_id=parent_id,expected_sequence=sequence,
+                    device='cuda' if ctx['executor']!='local' else 'cpu')
+        task=submit('design',inputs,**ctx)
+        st.success('设计任务已保存：'+task+'，可在项目与任务页查看。')
 
 
 def render_results(run, predictions):
     df = pd.read_csv(run / "candidates.tsv", sep="\t")
     manifest = json.loads((run / "manifest.json").read_text(encoding="utf-8"))
     st.caption(f"{manifest['model']['model']} · {manifest['priority']} · {', '.join(manifest['triad_labels'])}")
-    st.dataframe(df[["candidate_id", "mutations_pdb", "substitutions", "additive_log_odds", "ligand_context_delta",
-                     "gravy", "estimated_charge_pH7"]], hide_index=True, width="stretch")
+    columns=["candidate_id","mutations_pdb","substitutions","additive_log_odds","joint_log_likelihood_delta",
+             "ligand_context_delta","gravy","estimated_charge_pH7"]
+    st.dataframe(df[[c for c in columns if c in df]],hide_index=True,width='stretch')
     st.caption(tr("相容性与配体遮蔽差值描述模型对序列的偏好。辛酸乙酯生成速率和合成/水解比需单独测定。",
                   "Scores describe sequence preference. Ethyl octanoate formation and synthesis/hydrolysis ratios require measurements."))
     for ui_col, name in zip(st.columns(3), ("candidates.fasta", "sites.tsv", "substitutions.tsv")):

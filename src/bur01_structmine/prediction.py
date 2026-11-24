@@ -441,7 +441,8 @@ def run_prediction(request: PredictionRequest) -> PredictionSummary:
         shutil.copy2(rank_one.scores_path, canonical_scores)
         plddt_path, pae_path = _write_quality_artifacts(context, canonical_scores)
 
-        mapping = map_8hfw_catalytic_sites(record.sequence, override=request.catalytic_override)
+        from .unified.families import map_sequence
+        mapping = map_sequence(record.sequence, request.family_id, override=request.catalytic_override)
         context.manifest.models = models
         context.manifest.rank_001_path = str(canonical_pdb.resolve())
         context.manifest.mean_plddt = rank_one.mean_plddt
@@ -449,7 +450,7 @@ def run_prediction(request: PredictionRequest) -> PredictionSummary:
         context.manifest.catalytic_mapping = mapping
         if not mapping["complete"]:
             context.manifest.warnings.append(
-                "One or more 8HFW catalytic residues could not be mapped with matching identity; catalytic evidence remains incomplete"
+                "One or more family catalytic residues could not be mapped with matching identity; catalytic evidence remains incomplete"
             )
         context.add_artifact("rank_001_pdb", canonical_pdb)
         context.add_artifact("rank_001_scores", canonical_scores)
@@ -520,6 +521,7 @@ def run_prediction_and_mine(
         query_chain="A",
         parent_prediction_id=prediction_summary.prediction_id,
         catalytic_reference_sites=catalytic_sites,
+        family_id=request.family_id,
     )
     _append_prediction_child_run(prediction_summary.manifest_path, mining.run_id)
     updated = PredictionManifest.model_validate_json(

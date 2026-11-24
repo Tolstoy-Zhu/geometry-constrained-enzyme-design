@@ -1,0 +1,334 @@
+{
+  "schema_version": "1.0.0",
+  "date": "2026-11-24",
+  "release": "0.6.0.dev0-engineering-preview",
+  "tests": {
+    "non_gpu_passed": 172,
+    "learning_passed": 8,
+    "main_environment_learning_module_skipped": true
+  },
+  "runtime": {
+    "GPU": "RTX PRO 6000 Blackwell Server Edition",
+    "GPU_memory_MiB": 97887,
+    "torch": "2.9.1+cu128",
+    "tensorflow_cpu": "2.15.1",
+    "OpenMM": "8.2.0",
+    "OpenMM_CUDA_12": "8.2.0",
+    "CUDA_nvcc": "12.8.93"
+  },
+  "properties_compatibility": {
+    "scope": "24 core designs plus parent, GPU TmProt / Linux CPU EnzRank, oneDNN disabled",
+    "comparisons": {
+      "protein_predictions.tsv": {
+        "rows": 25,
+        "metrics": {
+          "swi_index": {
+            "maximum_absolute_difference": 0.0,
+            "absolute_tolerance": 1e-06,
+            "passed": true
+          },
+          "swi_soluble_score": {
+            "maximum_absolute_difference": 0.0,
+            "absolute_tolerance": 1e-06,
+            "passed": true
+          },
+          "tmprot_tm_c": {
+            "maximum_absolute_difference": 1.9073486328125e-05,
+            "absolute_tolerance": 0.0001,
+            "passed": true
+          }
+        }
+      },
+      "substrate_predictions.tsv": {
+        "rows": 50,
+        "metrics": {
+          "enzrank_score": {
+            "maximum_absolute_difference": 9.5367431640625e-07,
+            "absolute_tolerance": 1e-06,
+            "passed": true
+          }
+        }
+      }
+    },
+    "passed": true
+  },
+  "trained_models": {
+    "kcat": {
+      "model_id": "aqua_kcat_db274758d04a78dd",
+      "status": "validated_upgrade",
+      "endpoint": "kcat",
+      "n": 26789,
+      "parameters": {
+        "max_features": 0.5,
+        "min_samples_leaf": 2,
+        "trees": 200
+      },
+      "promotion": {
+        "bootstrap_unit": "sequence_parent_group",
+        "delta_MAE": -0.34518618539849405,
+        "interval_95": [
+          -0.4838443937851295,
+          -0.225616035958482
+        ],
+        "promote": true,
+        "repetitions": 1000,
+        "sample_weighted_delta_MAE": -0.5058868232378833,
+        "status": "assessed"
+      },
+      "metrics": {
+        "ExtraTrees": {
+          "MAE": 1.1138193391547742,
+          "RMSE": 1.446406137121928,
+          "Spearman": 0.304186092170228,
+          "n": 2369
+        },
+        "Ridge": {
+          "MAE": 1.6197061623926574,
+          "RMSE": 2.121799704670123,
+          "Spearman": 0.16030158067301675,
+          "n": 2369
+        },
+        "new_enzyme": {
+          "MAE": 1.1138193391547744,
+          "RMSE": 1.446406137121928,
+          "Spearman": 0.304186092170228,
+          "n": 2369
+        },
+        "new_enzyme_and_substrate": {
+          "MAE": 1.1585201803247278,
+          "RMSE": 1.4812793176357626,
+          "Spearman": 0.16274100426004842,
+          "n": 572
+        },
+        "new_enzyme_seen_substrate": {
+          "MAE": 1.0995906907690127,
+          "RMSE": 1.4351279273898114,
+          "Spearman": 0.32924284811851584,
+          "n": 1797
+        },
+        "new_substrate": {
+          "MAE": 0.550430211626836,
+          "RMSE": 0.8265271975278349,
+          "Spearman": 0.8263761811456616,
+          "cohort": "seen_exact_enzyme_reserved_substrate",
+          "n": 1285
+        },
+        "training_mean": {
+          "MAE": 1.1888586687565217,
+          "RMSE": 1.5277990892618705,
+          "Spearman": null,
+          "n": 2369
+        }
+      },
+      "calibration": {
+        "independent_groups": 301,
+        "radius_log10": 4.258561559665652,
+        "status": "calibrated_in_domain",
+        "test_coverage": 0.9856479527226678
+      },
+      "recipe": {
+        "conditions": false,
+        "evaluation_protocol_sha256": "1145416ea42dbf31cc5cd8e1e7920b667962756ef421443f5cba54db37e104df",
+        "features_sha256": "199c993dc656d5e7b812af3abd01d274ab86b08f29961d8304c8ccb004bd7e68",
+        "ridge_precision": "float64",
+        "seed": 2026,
+        "split_sha256": "5ba52f878bb2c1ce20ee174cc7a5f29137f41d65310f0c4a8b88b1c1d7b8f37d",
+        "version": "esm_morgan_ridge_extratrees_v2",
+        "versions": {
+          "numpy": "1.26.4",
+          "rdkit": "2024.09.6",
+          "scipy": "1.15.3",
+          "sklearn": "1.6.1"
+        }
+      },
+      "dataset": {
+        "source": "catapro",
+        "source_sha256": "aa58dd9730fff51e510ea0738af00cbf256aa7cd55d9cecfdcb95932d23ed519",
+        "endpoint": "kcat",
+        "raw_rows": 27658,
+        "accepted_rows": 27388,
+        "excluded_rows": 270,
+        "groups": 3289,
+        "split_counts": {
+          "calibration": 2683,
+          "test": 2396,
+          "train": 20083,
+          "validation": 2226
+        },
+        "split_sha256": "5ba52f878bb2c1ce20ee174cc7a5f29137f41d65310f0c4a8b88b1c1d7b8f37d"
+      },
+      "evaluation_counts": {
+        "train": 17991,
+        "validation": 1964,
+        "calibration": 2342,
+        "test": 2369,
+        "new_substrate": 1285
+      },
+      "reserved_substrate_count": 321
+    },
+    "Km": {
+      "model_id": "aqua_Km_76b851bb3c53dac0",
+      "status": "validated_upgrade",
+      "endpoint": "Km",
+      "n": 40651,
+      "parameters": {
+        "max_features": 0.5,
+        "min_samples_leaf": 10,
+        "trees": 200
+      },
+      "promotion": {
+        "bootstrap_unit": "sequence_parent_group",
+        "delta_MAE": -0.22464934845179263,
+        "interval_95": [
+          -0.30576227979305926,
+          -0.15310411467697385
+        ],
+        "promote": true,
+        "repetitions": 1000,
+        "sample_weighted_delta_MAE": -0.19857919021236292,
+        "status": "assessed"
+      },
+      "metrics": {
+        "ExtraTrees": {
+          "MAE": 0.812105634158827,
+          "RMSE": 1.0435294598222211,
+          "Spearman": 0.5316512975469156,
+          "n": 3887
+        },
+        "Ridge": {
+          "MAE": 1.01068482437119,
+          "RMSE": 1.3742063898141164,
+          "Spearman": 0.4539167907179434,
+          "n": 3887
+        },
+        "new_enzyme": {
+          "MAE": 0.8121056341588271,
+          "RMSE": 1.0435294598222211,
+          "Spearman": 0.5316512975469156,
+          "n": 3887
+        },
+        "new_enzyme_and_substrate": {
+          "MAE": 0.9084085392908037,
+          "RMSE": 1.1518374471518011,
+          "Spearman": 0.35271824298580406,
+          "n": 1196
+        },
+        "new_enzyme_seen_substrate": {
+          "MAE": 0.7693043429890595,
+          "RMSE": 0.9916025479032763,
+          "Spearman": 0.5996382788412031,
+          "n": 2691
+        },
+        "new_substrate": {
+          "MAE": 0.6915125212406393,
+          "RMSE": 0.8974293847553922,
+          "Spearman": 0.5661207914956742,
+          "cohort": "seen_exact_enzyme_reserved_substrate",
+          "n": 2508
+        },
+        "training_mean": {
+          "MAE": 0.9825752633942968,
+          "RMSE": 1.2477268981946903,
+          "Spearman": null,
+          "n": 3887
+        }
+      },
+      "calibration": {
+        "independent_groups": 421,
+        "radius_log10": 2.8692931706976226,
+        "status": "calibrated_in_domain",
+        "test_coverage": 0.989452019552354
+      },
+      "recipe": {
+        "conditions": false,
+        "evaluation_protocol_sha256": "01bcbbdab8045e66da3af0087dedf33b2d3d3ea16c824ea33aaf332f29422b77",
+        "features_sha256": "a17e0ab68788675132dd89703db4782f8d77958c9f9ac1466c3a3b7f959b9fba",
+        "ridge_precision": "float64",
+        "seed": 2026,
+        "split_sha256": "c4388bb090249de418ca24f891f8dc132bba6e1686f2a6aaf8e9de680a11af91",
+        "version": "esm_morgan_ridge_extratrees_v2",
+        "versions": {
+          "numpy": "1.26.4",
+          "rdkit": "2024.09.6",
+          "scipy": "1.15.3",
+          "sklearn": "1.6.1"
+        }
+      },
+      "dataset": {
+        "source": "catapro",
+        "source_sha256": "aa58dd9730fff51e510ea0738af00cbf256aa7cd55d9cecfdcb95932d23ed519",
+        "endpoint": "Km",
+        "raw_rows": 42018,
+        "accepted_rows": 41582,
+        "excluded_rows": 436,
+        "groups": 4689,
+        "split_counts": {
+          "calibration": 4293,
+          "test": 3919,
+          "train": 27505,
+          "validation": 5865
+        },
+        "split_sha256": "c4388bb090249de418ca24f891f8dc132bba6e1686f2a6aaf8e9de680a11af91"
+      },
+      "evaluation_counts": {
+        "train": 23430,
+        "validation": 5116,
+        "calibration": 3414,
+        "test": 3887,
+        "new_substrate": 2508
+      },
+      "reserved_substrate_count": 425
+    }
+  },
+  "family_design_examples": {
+    "calb": {
+      "candidates": 3,
+      "family_id": "calb",
+      "candidates_file_sha256": "7e27a211e3cdf70ae2ff918602c021a1ec63e4650edb6d92a13c09e46580ebbf"
+    },
+    "gh1_bgl": {
+      "candidates": 3,
+      "family_id": "gh1_bgl",
+      "candidates_file_sha256": "3edd548ce94c0c496949883f8c4efaee6a40195909bca77e8fc331f9201aeb7b"
+    }
+  },
+  "feature_process_recovery": {
+    "same_task_id_resumed": true,
+    "saved_before_interruption": 3744,
+    "sampled_cached_file_hashes_unchanged": 10,
+    "completed_embeddings": 12880
+  },
+  "openmm_gpu_smoke": {
+    "cuda_context": true,
+    "checkpoint_restored": true,
+    "maximum_restored_position_difference": 0.0,
+    "enzyme_md_acceptance": false
+  },
+  "bur01_full_construct_prediction": {
+    "parent": 1,
+    "candidates": 24,
+    "construct_length": 294,
+    "protein_predictions": 25,
+    "pair_predictions": 50,
+    "kcat_predictions": 25,
+    "Km_predictions": 25
+  },
+  "mechanism": {
+    "approved_production_ns": 120,
+    "completed_production_ns": 0,
+    "status": "preparation_required",
+    "blocking_items": [
+      "full_construct_coordinates",
+      "independent_structure_review",
+      "validated_ligand_buffer_parameters",
+      "geometry_and_equilibration_acceptance"
+    ]
+  },
+  "separate_pending_acceptance": [
+    "full_NR_database",
+    "remote_AlphaFold_runtime",
+    "120_ns_enzyme_trajectories",
+    "mechanistic_sampling_convergence",
+    "condition_specific_synthesis_hydrolysis_models"
+  ]
+}

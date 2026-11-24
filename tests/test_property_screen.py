@@ -9,6 +9,20 @@ from bur01_structmine.property_report import report_data
 from bur01_structmine.structure_search import load_ca_trace
 
 
+def test_cpu_tensorflow_distribution_metadata(monkeypatch):
+    from bur01_structmine import property_inference as inference
+    def version(name):
+        if name == "tensorflow":
+            raise inference.importlib.metadata.PackageNotFoundError(name)
+        if name == "tensorflow-cpu":
+            return "2.15.1"
+        raise inference.importlib.metadata.PackageNotFoundError(name)
+    monkeypatch.setattr(inference.importlib.metadata, "version", version)
+    assert inference.distribution_version("tensorflow") == "2.15.1"
+    with pytest.raises(inference.importlib.metadata.PackageNotFoundError):
+        inference.distribution_version("missing")
+
+
 def make_run(root, name, shift=0):
     source = project_root() / "data/query/Bur01m.pdb"
     run = root / name

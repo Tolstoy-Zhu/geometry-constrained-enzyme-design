@@ -237,6 +237,7 @@ The reproducibility preset is fixed to two MMseqs2 iterations, `max-seqs=2500`,
 def export_nr_job_bundle(request: NrExpansionRequest) -> NrRunSummary:
     """Create a complete, credential-free job bundle without executing full NR."""
     config_path, config = load_nr_config(request.config_path)
+    config["family_id"] = request.family_id
     scope = request.database_scope or str(config["database"]["scope"])
     if scope != "full_nr":
         raise ValueError("nr-export-job requires a configuration with database.scope=full_nr")
@@ -258,14 +259,18 @@ def export_nr_job_bundle(request: NrExpansionRequest) -> NrRunSummary:
         for warning in warnings:
             context.warning(warning)
 
-        query = read_single_fasta(resolve_path("data/query/Bur01m_seed.fasta"))
-        write_fasta([("Bur01_8HFW_A", query.sequence)], bundle_dir / "bur01_query.fasta")
+        from .unified.families import get_profile,reference
+        from .structure_search import load_ca_trace
+        profile=get_profile(request.family_id)
+        query = load_ca_trace(reference(profile),chain_id=profile.reference_chain)
+        write_fasta([(request.family_id, query.sequence)], bundle_dir / "bur01_query.fasta")
         shutil.copy2(
             resolve_path("scripts/nr_server_postprocess.py"),
             bundle_dir / "nr_server_postprocess.py",
         )
         metadata = {
             "project_version": "0.5.0.dev0",
+            "family_id": request.family_id,
             "nr_run_id": context.nr_run_id,
             "parent_structure_run_id": request.source_run_id,
             "database_scope": "full_nr",
@@ -484,6 +489,7 @@ def _write_imported_candidates(
         cluster_map,
         direct,
         config["filter"],
+        family_id=config.get("family_id","bur01"),
     )
     if candidates.empty:
         raise ValueError("Imported full-NR result produced no sequence representatives")
