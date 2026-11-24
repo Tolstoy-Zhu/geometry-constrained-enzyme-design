@@ -165,6 +165,10 @@ def run_worker(mode, request, folder, assets, device):
         PYTHONNOUSERSITE="1",
     )
     # Keep editable packages and unrelated site directories out of the model interpreter.
+    if os.name != "nt":
+        # CPU oneDNN fusion changes EnzRank rounding across platforms. Keep the
+        # validated Windows environment unchanged and use unfused Linux kernels.
+        env.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
     env.pop("PYTHONPATH", None)
     env.pop("PYTHONHOME", None)
     result = subprocess.run(

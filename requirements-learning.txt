@@ -1,0 +1,12 @@
+# Isolated CPU data/training runtime. ESM features use the pinned property runtime or a GPU worker.
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.15.3
+scikit-learn==1.6.1
+rdkit==2024.9.6
+pydantic>=2.13.4,<3
+requests>=2.31
+PyYAML>=6
+biopython>=1.83
+joblib>=1.4,<2
+pytest>=8,<10

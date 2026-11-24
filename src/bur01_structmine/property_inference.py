@@ -127,6 +127,16 @@ def predict_pairs(sequences, substrates, root):
     return {"substrates": chemical, "pairs": output}
 
 
+def distribution_version(name):
+    """CPU-only TensorFlow is packaged separately but exposes the same API."""
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        if name != "tensorflow":
+            raise
+        return importlib.metadata.version("tensorflow-cpu")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["thermal", "pairs"])
@@ -142,7 +152,9 @@ def main():
     else:
         result = predict_pairs(request["sequences"], request["substrates"], args.models)
         packages = ["tensorflow", "rdkit", "numpy"]
-    result["versions"] = {k: importlib.metadata.version(k) for k in packages}
+    result["versions"] = {k: distribution_version(k) for k in packages}
+    if args.mode == "pairs":
+        result["versions"]["tensorflow_onednn"] = os.environ.get("TF_ENABLE_ONEDNN_OPTS", "library_default")
     args.output.write_text(json.dumps(result, ensure_ascii=False, allow_nan=False), encoding="utf-8")
 
 
