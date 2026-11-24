@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "forcefield": "GAFF2",
+  "charge_method": "AM1-BCC",
+  "molecules": [
+    {
+      "name": "ethanol",
+      "smiles": "CCO",
+      "formal_charge": 0
+    },
+    {
+      "name": "octanoic_acid",
+      "smiles": "CCCCCCCC(=O)O",
+      "formal_charge": 0
+    },
+    {
+      "name": "octanoate",
+      "smiles": "CCCCCCCC(=O)[O-]",
+      "formal_charge": -1
+    },
+    {
+      "name": "ethyl_octanoate",
+      "smiles": "CCCCCCCC(=O)OCC",
+      "formal_charge": 0
+    },
+    {
+      "name": "citrate_H3",
+      "smiles": "OC(=O)CC(O)(C(=O)O)CC(=O)O",
+      "formal_charge": 0
+    },
+    {
+      "name": "citrate_H2_terminal",
+      "smiles": "[O-]C(=O)CC(O)(C(=O)O)CC(=O)O",
+      "formal_charge": -1
+    },
+    {
+      "name": "citrate_H2_central",
+      "smiles": "OC(=O)CC(O)(C(=O)[O-])CC(=O)O",
+      "formal_charge": -1
+    },
+    {
+      "name": "citrate_H1_terminals",
+      "smiles": "[O-]C(=O)CC(O)(C(=O)O)CC(=O)[O-]",
+      "formal_charge": -2
+    },
+    {
+      "name": "citrate_H1_mixed",
+      "smiles": "[O-]C(=O)CC(O)(C(=O)[O-])CC(=O)O",
+      "formal_charge": -2
+    },
+    {
+      "name": "citrate_0",
+      "smiles": "[O-]C(=O)CC(O)(C(=O)[O-])CC(=O)[O-]",
+      "formal_charge": -3
+    }
+  ]
+}

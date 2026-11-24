@@ -1,7 +1,9 @@
-data/** -text
+data/** -text -whitespace
 ui/assets/** -text
 *.py text eol=lf
 *.json text eol=lf
 *.md text eol=lf
 *.sh text eol=lf
 scripts/unified/aqua-python text eol=lf
+scripts/unified/structure-python text eol=lf
+scripts/unified/colabfold-batch text eol=lf

@@ -74,6 +74,23 @@ def test_public_msa_requires_explicit_consent_on_cache_miss(tmp_path: Path) -> N
     assert "PrivacyConsentRequired" in manifest.error
 
 
+def test_local_msa_runs_without_external_consent(tmp_path,monkeypatch):
+    request=_request(tmp_path,'local-msa',consent=False)
+    msa=tmp_path/'local.a3m';msa.write_text(f'#40\t1\n>local\n{SEQUENCE}\n>homolog\n{SEQUENCE}\n')
+    request.local_msa_path=str(msa)
+    counter=tmp_path/'attempts';monkeypatch.setenv('FAKE_COLABFOLD_FAIL_MSA_ATTEMPTS','100')
+    monkeypatch.setenv('FAKE_COLABFOLD_COUNTER',str(counter))
+    result=run_prediction(request)
+    manifest=PredictionManifest.model_validate_json(result.manifest_path.read_text())
+    assert result.status=='completed' and not counter.exists()
+    assert manifest.msa_provenance['public_request'] is False
+    assert manifest.public_msa_service==''
+    request=_request(tmp_path,'wrong-local-msa',consent=False)
+    request.local_msa_path=str(msa)
+    msa.write_text('>wrong\n'+SEQUENCE[:-1]+'A\n')
+    with pytest.raises(ValueError,match='does not match'):run_prediction(request)
+
+
 def test_public_msa_retries_then_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     counter = tmp_path / "msa_attempts.txt"
     monkeypatch.setenv("FAKE_COLABFOLD_FAIL_MSA_ATTEMPTS", "2")

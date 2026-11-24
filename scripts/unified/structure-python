@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Separate AlphaFold/JAX environment from the locked OpenMM 8.2 production environment.
+set -euo pipefail
+AQUA_DEPLOY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+unset LD_LIBRARY_PATH
+export XLA_PYTHON_CLIENT_PREALLOCATE=false
+export JAX_COMPILATION_CACHE_DIR="$AQUA_DEPLOY_ROOT/cache/jax"
+export PATH="$AQUA_DEPLOY_ROOT/envs/structure/bin:$PATH"
+exec "$AQUA_DEPLOY_ROOT/envs/structure/bin/python" "$@"

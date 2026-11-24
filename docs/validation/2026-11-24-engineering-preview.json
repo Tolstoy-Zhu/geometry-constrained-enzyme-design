@@ -3,9 +3,20 @@
   "date": "2026-11-24",
   "release": "0.6.0.dev0-engineering-preview",
   "tests": {
-    "non_gpu_passed": 172,
+    "non_gpu_passed": 187,
     "learning_passed": 8,
-    "main_environment_learning_module_skipped": true
+    "main_environment_learning_module_skipped": true,
+    "github_ci": {
+      "passed": 180,
+      "skipped": 0,
+      "run_url": "https://github.com/Tolstoy-Zhu/geometry-constrained-enzyme-design/actions/runs/45399448654",
+      "commit": "c45ce82a1b8522700592107ddcfa4e5ffbb76217",
+      "scope": "Previous baseline commit; current preparation additions separately tested locally."
+    },
+    "isolated_numerical_environment_passed": 19,
+    "overlapping_passed_tests": 6,
+    "distinct_tests_passed": 200,
+    "main_environment_rdkit_checks_skipped": true
   },
   "runtime": {
     "GPU": "RTX PRO 6000 Blackwell Server Edition",
@@ -316,19 +327,41 @@
   "mechanism": {
     "approved_production_ns": 120,
     "completed_production_ns": 0,
-    "status": "preparation_required",
+    "status": "construct_and_bulk_screening_completed",
     "blocking_items": [
-      "full_construct_coordinates",
-      "independent_structure_review",
-      "validated_ligand_buffer_parameters",
-      "geometry_and_equilibration_acceptance"
+      "protein_protonation",
+      "explicit_solution_assembly",
+      "equilibration_acceptance"
     ]
   },
   "separate_pending_acceptance": [
     "full_NR_database",
-    "remote_AlphaFold_runtime",
     "120_ns_enzyme_trajectories",
     "mechanistic_sampling_convergence",
     "condition_specific_synthesis_hydrolysis_models"
-  ]
+  ],
+  "preparation_acceptance": {
+    "full_construct_predictions": 4,
+    "monomer_coordinate_checks_passed": 4,
+    "assembly_coordinate_checks_passed": 4,
+    "parameter_states_checked": 10,
+    "bulk_mixtures_checked": 3,
+    "bulk_npt_ns_per_mixture": 1,
+    "bulk_nvt_ps_per_mixture": 40,
+    "periodic_bulk_analysis_completed": 3,
+    "parameter_archive_download_verified": true,
+    "downloaded_parameter_file_checksums_verified": 69,
+    "production_ns_completed": 0,
+    "construct_specific_results": "private research workspace",
+    "scope": "Numerical parameter and short bulk-solution screening; protein protonation and equilibration remain pending.",
+    "structure_runtime": {
+      "python": "3.12.16",
+      "colabfold": "1.6.3",
+      "jax": "0.9.1",
+      "CUDA_major": 13,
+      "openmm_for_AF_relaxation": "8.5.2"
+    },
+    "AmberTools": "26.0",
+    "GAFF2_sha256": "2244b58627a85693776d12a0155a292f72b65b4398a03b87958136ad7460c67f"
+  }
 }

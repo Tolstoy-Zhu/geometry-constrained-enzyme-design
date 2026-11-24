@@ -107,7 +107,7 @@ def submit(kind,inputs,*,project_id="default",family_id="bur01",executor="local"
             store.update(spec.task_id,"blocked","远端提交未确认；重连时先核对同一任务编号："+str(exc))
     return spec.task_id
 
-PATH_KEYS={"parent","fasta_path","config_path","reaction_config","dataset","features","cluster_file",
+PATH_KEYS={"parent","fasta_path","local_msa_path","parameter_dir","config_path","reaction_config","dataset","features","cluster_file",
            "prepared_manifest","batch_manifest","msa","structure","run","input","protocol","reference",
            'query_structure','input_tsv','topology','trajectories','channel_manifest','model_dir','source_run_dir','bundle','query_fasta'}
 def task_bundle(spec):
@@ -129,6 +129,9 @@ def task_bundle(spec):
                 if p.is_file():files[name+"/"+p.relative_to(source).as_posix()]=p
         else:
             files[name]=source
+            if key=='local_msa_path':
+                evidence=source.with_suffix('.provenance.json')
+                if evidence.is_file():files[str(PurePosixPath(name).with_suffix('.provenance.json'))]=evidence
             if key=="cluster_file":
                 evidence=source.with_suffix(".json")
                 if not evidence.is_file():raise ValueError("Cluster mapping needs its provenance JSON")
@@ -171,6 +174,10 @@ def safe_extract(data,destination):
             if (rel.is_absolute() or ".." in rel.parts or "\\" in member.name or ":" in member.name
                     or not target.is_relative_to(destination) or not member.isfile()):
                 raise ValueError("Unsafe task archive entry")
+            if os.name=='nt' and not str(target).startswith('\\\\?\\'):
+                # Extended paths avoid the Windows 260-character legacy limit;
+                # all containment checks above still use the ordinary resolved path.
+                target=Path('\\\\?\\'+str(target))
             total+=member.size
             if total>2_000_000_000: raise ValueError("Task archive exceeds 2 GB")
             if target.exists():

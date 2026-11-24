@@ -763,7 +763,7 @@ def cancel_run() -> None:
 
 def start_prediction_process(prediction_id, preset, use_templates, consent, catalytic_sites,
                              fasta_path=None,candidate_run_id=None,candidate_nr_run_id=None,
-                             accession=None,mine_after=False) -> None:
+                             accession=None,mine_after=False,local_msa_path=None) -> None:
     from bur01_structmine.unified.execution import submit
     from bur01_structmine.unified.ui import context
     from bur01_structmine.unified.store import state_root
@@ -776,6 +776,7 @@ def start_prediction_process(prediction_id, preset, use_templates, consent, cata
         request=PredictionRequest(candidate_run_id=candidate_run_id,candidate_nr_run_id=candidate_nr_run_id,accession=accession)
         record,_=resolve_prediction_input(request)
         inputs['fasta_text']=record.to_fasta()
+    if local_msa_path is not None:inputs['local_msa_path']=str(local_msa_path)
     inputs['mine_after']=mine_after
     if context()['executor']!='local':inputs['runtime_backend']='native'
     task=submit('predict',inputs,**context())
@@ -1831,13 +1832,20 @@ with tabs[2]:
     )
     preset_lookup = {tx("quick"): "quick", tx("standard"): "standard", tx("high"): "high"}
     use_templates = settings_columns[1].toggle(tx("use_templates"), value=False)
-    consent = st.checkbox(tx("privacy_confirm"), value=False)
-    st.caption(tx("privacy_required"))
+    local_msa_upload = st.file_uploader("本地序列比对（可选，A3M）",type=["a3m"],key="prediction_local_msa")
+    if local_msa_upload is not None:
+        consent = False
+        st.caption("使用本地比对，不向公共 MSA 服务提交序列。首条序列须与当前完整构建一致；此模式不启用公共模板搜索。")
+        if use_templates:st.warning("使用本地比对时，请关闭公共模板搜索。")
+    else:
+        consent = st.checkbox(tx("privacy_confirm"), value=False)
+        st.caption(tx("privacy_required"))
 
     prediction_controls = st.columns([1, 1.25, 1, 1.2])
     prediction_disabled = (
         prediction_record is None
-        or not consent
+        or (not consent and local_msa_upload is None)
+        or (local_msa_upload is not None and use_templates)
         or prediction_state == "running"
         or bool(prediction_blockers)
     )
@@ -1877,6 +1885,14 @@ with tabs[2]:
         try:
             prediction_id = make_run_id(f"AF2-{prediction_record.name}")
             fasta_path = None
+            local_msa_path = None
+            if local_msa_upload is not None:
+                from bur01_structmine.unified.msa import read_monomer_a3m
+                UI_PREDICTION_INPUTS.mkdir(parents=True, exist_ok=True)
+                local_msa_path = UI_PREDICTION_INPUTS / f"{prediction_id}.a3m"
+                local_msa_path.write_bytes(local_msa_upload.getvalue())
+                if read_monomer_a3m(local_msa_path)[0][1] != prediction_record.sequence:
+                    raise ValueError("本地 A3M 首条序列与当前完整构建不一致")
             if input_mode in {tx("paste_fasta"), tx("upload_fasta"), native_design_label}:
                 UI_PREDICTION_INPUTS.mkdir(parents=True, exist_ok=True)
                 fasta_path = UI_PREDICTION_INPUTS / f"{prediction_id}.fasta"
@@ -1892,6 +1908,7 @@ with tabs[2]:
                 candidate_nr_run_id=candidate_nr_run_id,
                 accession=candidate_accession_value,
                 mine_after=predict_mine_clicked,
+                local_msa_path=local_msa_path,
             )
             st.session_state.pop("prediction_candidate_accession", None)
             st.session_state.pop("prediction_nr_accession", None)

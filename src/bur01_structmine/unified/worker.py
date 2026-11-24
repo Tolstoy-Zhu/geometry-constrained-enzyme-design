@@ -42,6 +42,9 @@ def run_task(spec,store):
         from ..models import PredictionRequest
         from ..prediction import run_prediction,run_prediction_and_mine
         mine_after=inputs.pop('mine_after',False)
+        if os.name!='nt':
+            inputs['runtime_backend']='native'
+            inputs['colabfold_executable']=os.environ.get('AQUA_COLABFOLD_EXECUTABLE','colabfold_batch')
         inputs["family_id"]=spec.family_id;inputs["output_root"]=str(out/"predictions")
         if mine_after:
             prediction,mining=run_prediction_and_mine(PredictionRequest.model_validate(inputs),

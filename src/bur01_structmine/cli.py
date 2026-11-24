@@ -229,6 +229,7 @@ def _add_prediction_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--preset", choices=("quick", "standard", "high"), default="standard")
     parser.add_argument("--templates", action="store_true", help="Enable public template search")
+    parser.add_argument("--local-msa", help="Use a matching local monomer A3M without a public MSA request")
     parser.add_argument(
         "--confirm-public-msa",
         action="store_true",
@@ -266,6 +267,7 @@ def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
         accession=args.accession,
         preset=args.preset,
         use_templates=args.templates,
+        local_msa_path=args.local_msa,
         confirm_public_msa=args.confirm_public_msa,
         prediction_id=args.prediction_id,
         output_root=args.prediction_output_root,

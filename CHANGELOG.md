@@ -4,6 +4,9 @@
 
 ### 0.6.0.dev0 Unified Engineering Preview
 
+- Added supplied local A3M input, full-construct alignment provenance and an isolated Blackwell-compatible ColabFold runtime; private sequences need not be sent to a public MSA service.
+- Added full-chain and assembly coordinate review, bounded assembly repair with rebuilt hydrogens, GAFF2/AM1-BCC ligand preparation and checked parameter downloads. Bulk-solution density, concentration, periodic contacts and ethanol distribution remain separate from protein equilibration and production release.
+- Fixed concurrent polling dropping download receipts and Windows long-path extraction of ranked AlphaFold models.
 - Added versioned project, construct, reaction, assay, task and model records in SQLite; historical results remain in their original files.
 - Added independent Bur01, CALB and GH1 family profiles, catalytic rules, residue mappings and public structure-chain examples. WASE remains specific to Bur01.
 - Connected the existing workbench and CLI to persistent local/SSH jobs, scoped cancellation, reconciled retries and cached small-result downloads. Server credentials and research data remain outside Git.

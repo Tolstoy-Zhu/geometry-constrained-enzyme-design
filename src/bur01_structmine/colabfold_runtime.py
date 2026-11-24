@@ -319,7 +319,7 @@ class ColabFoldRuntime:
     def gpu_details(self) -> dict[str, Any]:
         if os.environ.get("AQUA_SKIP_GPU_CHECK") == "1":
             return {"platform": "test", "devices": ["fake-gpu"]}
-        python = "/opt/colabfold/env/bin/python" if self.backend == "wsl" else shutil.which("python") or "python"
+        python = "/opt/colabfold/env/bin/python" if self.backend == "wsl" else os.environ.get('AQUA_COLABFOLD_PYTHON',shutil.which("python") or "python")
         script = (
             "import json,jax; d=jax.devices(); "
             "print(json.dumps({'jax':jax.__version__,'devices':[str(x) for x in d],"
@@ -340,7 +340,7 @@ class ColabFoldRuntime:
     def versions(self) -> dict[str, str]:
         if self.backend == "native" and os.environ.get("AQUA_FAKE_COLABFOLD_VERSION"):
             return {"colabfold": os.environ["AQUA_FAKE_COLABFOLD_VERSION"]}
-        python = "/opt/colabfold/env/bin/python" if self.backend == "wsl" else shutil.which("python") or "python"
+        python = "/opt/colabfold/env/bin/python" if self.backend == "wsl" else os.environ.get('AQUA_COLABFOLD_PYTHON',shutil.which("python") or "python")
         script = (
             "import importlib.metadata as m,json; "
             "print(json.dumps({k:m.version(k) for k in ['colabfold','jax','openmm','alphafold-colabfold']}))"
@@ -374,7 +374,14 @@ class ColabFoldRuntime:
         if self.backend == "native" and os.environ.get("AQUA_FAKE_COLABFOLD_VERSION"):
             return {"fake_parameters": "test-only"}
         if self.backend != "wsl":
-            return {}
+            provenance=self.parameter_provenance()
+            if not provenance:return {}
+            root=Path(provenance['parameter_directory'])
+            from .run_context import file_sha256
+            for name,expected in provenance['parameter_files'].items():
+                if Path(name).name!=name or file_sha256(root/name)!=expected:
+                    raise ColabFoldUnavailable('AlphaFold parameter checksum mismatch: '+name)
+            return provenance['parameter_files']
         provenance = self.parameter_provenance()
         recorded = provenance.get("parameter_files", {})
         if isinstance(recorded, dict) and recorded:
@@ -405,7 +412,8 @@ class ColabFoldRuntime:
         if self.backend == "native" and os.environ.get("AQUA_FAKE_COLABFOLD_VERSION"):
             return {"source_url": "test-only", "archive_sha256": "test-only"}
         if self.backend != "wsl":
-            return {}
+            path=os.environ.get('AQUA_ALPHAFOLD_PROVENANCE')
+            return json.loads(Path(path).read_text(encoding='utf-8')) if path else {}
         result = capture_process_text(
             [
                 "wsl.exe",

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+AQUA_DEPLOY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$AQUA_DEPLOY_ROOT/bin/structure-python" -m colabfold.batch "$@" --data "$AQUA_DEPLOY_ROOT/models/alphafold"

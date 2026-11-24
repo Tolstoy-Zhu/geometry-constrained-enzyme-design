@@ -231,6 +231,7 @@ class PredictionRequest(BaseModel):
     preset: PredictionPreset = "standard"
     use_templates: bool = False
     confirm_public_msa: bool = False
+    local_msa_path: str | None = None
     prediction_id: str | None = None
     output_root: str = "results/predictions"
     msa_cache_dir: str = ".cache/colabfold_msa"
@@ -304,6 +305,7 @@ class PredictionManifest(BaseModel):
     msa_cache_key: str = ""
     msa_cache_hit: bool = False
     msa_path: str = ""
+    msa_provenance: dict[str, Any] = Field(default_factory=dict)
     runtime_versions: dict[str, str] = Field(default_factory=dict)
     runtime_patches: list[dict[str, Any]] = Field(default_factory=list)
     model_parameter_source: str = "https://storage.googleapis.com/alphafold/alphafold_params_2021-07-14.tar"

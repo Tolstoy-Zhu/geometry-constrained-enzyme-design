@@ -40,6 +40,21 @@ def test_remote_jobs_are_never_claimed_locally(tmp_path):
     store.recover()
     assert store.tasks()[0]["state"]=="queued"
 
+
+def test_late_poll_preserves_completed_download_and_newer_state(tmp_path):
+    store=Store(tmp_path/'state.sqlite');spec=task(executor='autodl');store.submit(spec)
+    out=tmp_path/'download';out.mkdir();(out/'.aqua-download.json').write_text('{}')
+    stamp='2026-11-24T13:00:00Z'
+    downloaded={'remote_updated':stamp,'remote':{'done':True},'local_output':str(out)}
+    polling={'remote_updated':stamp,'remote':{'done':True}}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda r:store.update(spec.task_id,'completed',result=r),[downloaded,polling]*20))
+    assert json.loads(store.task(spec.task_id)['result'])['local_output']==str(out)
+    store.update(spec.task_id,'running',result={'remote_updated':'2026-11-24T12:59:00Z'})
+    assert store.task(spec.task_id)['state']=='completed'
+    store.update(spec.task_id,'running',result={'remote_updated':'2026-11-24T13:01:00Z'})
+    assert 'local_output' not in json.loads(store.task(spec.task_id)['result'])
+
 def test_recovery_does_not_duplicate_live_orphan(tmp_path):
     store=Store(tmp_path/"state.sqlite");spec=task();store.submit(spec);store.claim()
     with worker_lock(store.path.parent/"tasks"/spec.task_id):

@@ -25,8 +25,12 @@ def option(name: str, default: str) -> str:
 
 
 def read_sequence(path: Path) -> tuple[str, str]:
-    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    return lines[0].lstrip(">") or "query", "".join(lines[1:]).upper()
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith('#')]
+    sequence=[]
+    for line in lines[1:]:
+        if line.startswith('>'):break
+        sequence.append(line)
+    return lines[0].lstrip(">") or "query", "".join(sequence).upper()
 
 
 def write_pdb(path: Path, sequence: str, confidence: float) -> None:

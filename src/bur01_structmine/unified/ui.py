@@ -128,7 +128,7 @@ def project_page():
         if row.get("result"):
             result=json.loads(row["result"]);st.json(result)
             output=Path(result.get("local_output",result.get("output",directory/"output")))
-            files=[p for p in output.rglob("*") if p.is_file() and p.suffix in {".json",".csv",".tsv",".html",".fasta",".xlsx"}]
+            files=[p for p in output.rglob("*") if p.is_file() and p.suffix in {".json",".csv",".tsv",".html",".fasta",".xlsx",".pdb",".zip"}]
             if files:
                 file=st.selectbox("下载结果文件",files,format_func=lambda p:str(p.relative_to(output)),key="aqua_download")
                 if file.stat().st_size<=50*1024*1024:
@@ -258,13 +258,61 @@ def mechanism_page():
     st.subheader("机制计算")
     st.caption("首批为游离酶：亲本加 3 条候选，每个 3 次独立重复，每次生产模拟 10 ns，总计 120 ns；平衡阶段另计。")
     st.write("流程：构建确认 → 装配与参数检查 → 最小化和平衡 → 分段 MD → 轨迹质量与通道、水/醇分析。")
+    preparations=Store().records('preparation',context()['project_id'])
+    if preparations:
+        prepared=preparations[-1]
+        st.subheader('当前建模与参数检查')
+        if prepared.get('structures'):
+            rows=[]
+            for row in prepared['structures']:
+                state={'queued':'排队中','running':'预测中','failed':'失败','completed':'已完成'}.get(row['state'],row['state'])
+                rows.append({'构建':row['name'],'任务':state,'结构复核':('通过' if row.get('structure_review_pass') else '待通过') if row['state']=='completed' else '待计算',
+                             '平均 pLDDT':row.get('plddt'),'N 端 pLDDT':row.get('terminal_plddt'),'Ser–His 距离（Å）':row.get('ser_his_A')})
+            st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
+            st.caption('结构复核采用完整序列、重原子、原子冲突、催化几何与置信度检查；正式模拟还需装配和溶液平衡通过。')
+        if prepared.get('parameters'):
+            with st.expander(f"配体与缓冲组分：{len(prepared['parameters'])} 种状态",expanded=True):
+                st.dataframe(pd.DataFrame([{'分子状态':r['name'],'形式电荷':r['formal_charge'],'部分电荷总和':r['partial_charge_sum'],
+                     '原子数':r['atoms'],'参数检查':'数值检查通过' if r['status']=='numerical_checks_passed' else '待通过'} for r in prepared['parameters']]),hide_index=True,width='stretch')
+                st.caption('GAFF2 / AM1-BCC 参数数值检查与水溶液验证分别记录。柠檬酸位置异构微状态的比例仍属于模拟假设。')
+        if prepared.get('solutions'):
+            st.dataframe(pd.DataFrame([{'溶液对照':r['name'],'任务':{'queued':'排队中','running':'计算中','failed':'失败','completed':'已完成'}.get(r['state'],r['state']),
+                '密度（g/mL）':r.get('density_g_ml'),'密度分段漂移':r.get('density_drift')} for r in prepared['solutions']]),hide_index=True,width='stretch')
+            st.caption('上述为不含蛋白的溶液测试，时长单独记录；120 ns 正式酶模拟的完成量另行统计。')
+        if prepared.get('assemblies'):
+            st.write('二聚体装配复核')
+            st.dataframe(pd.DataFrame([{'构建':r['name'],'装配检查':{'passed':'通过','blocked':'待修正'}.get(r.get('status'),{'running':'计算中','queued':'排队中','failed':'失败'}.get(r['state'],r['state'])),
+                '链间严重碰撞数':r.get('clashes'),'核心骨架位移（Å）':r.get('core_rms_displacement_A')} for r in prepared['assemblies']]),hide_index=True,width='stretch')
+            st.caption('按公开生物学装配放置两条链，固定核心骨架约束后修正末端碰撞；这一步不等同于水溶液平衡。')
+        if prepared.get('bulk_analysis'):
+            with st.expander('溶液分布与接触分析'):
+                st.dataframe(pd.DataFrame([{'溶液':r['name'],'检查':r.get('status',r['state']),
+                    '柠檬酸分子数':r.get('citrate_count'),'平均最大接触簇':r.get('citrate_largest_cluster_mean'),
+                    '观察到的最大接触簇':r.get('citrate_largest_cluster_max')} for r in prepared['bulk_analysis']]),hide_index=True,width='stretch')
+                st.caption('接触按周期边界下的原子距离计算；短轨迹只报告观察到的分布，不据此判定聚集平衡或结合常数。')
+        if prepared.get('parameter_bundle') and Path(prepared['parameter_bundle']).is_file():
+            st.download_button('下载已检查的分子参数',Path(prepared['parameter_bundle']).read_bytes(),'parameters.zip','application/zip')
+        st.info('正式模拟仍需逐构建完成蛋白质子化设定、显式溶液装配和分阶段平衡检查。')
     for record in Store().records("readiness",context()["project_id"]):
         st.write(f"完整构建已映射：{record.get('mapped_designs',0)} 条；正式模拟候选已放行：{record.get('selected_production_candidates',0)} 条。")
         reasons={"full_construct_coordinates_include_residues_1_11":"补全并检查 N 端 1–11 位残基",
                  "independent_candidate_structure_review":"候选完整构建的独立结构复核",
                  "validated_citrate_and_ligand_parameters":"柠檬酸及配体参数验证",
                  "geometry_and_equilibration_acceptance":"催化几何与平衡检查通过"}
-        for item in record.get("blocking_items",[]):st.warning(reasons.get(item,item))
+        if preparations:
+            with st.expander('早期准备记录（保留原始缺项）'):
+                for item in record.get('blocking_items',[]):st.write(reasons.get(item,item))
+        else:
+            for item in record.get("blocking_items",[]):st.warning(reasons.get(item,item))
+    from .artifacts import result_roots
+    bundles={}
+    for root in result_roots(context()['project_id']):
+        for path in root.glob('mechanism/parameters.zip'):bundles[str(path)]=path
+    if bundles:
+        with st.expander('已完成的参数任务下载'):
+            keys=list(bundles)
+            selected=st.selectbox('参数任务',keys,format_func=lambda key:next((part for part in Path(key).parts if part.startswith('task_')),'分子参数'))
+            st.download_button('下载参数文件与检查报告',bundles[selected].read_bytes(),'parameters.zip','application/zip',key='parameter_task_download')
     with st.expander("冻结批次与计算预算",expanded=True):
         manifest=st.file_uploader("候选与反应批次 JSON",type=["json"],key="mechanism_batch")
         ns=st.number_input("每次生产模拟长度（ns）",min_value=0.1,max_value=1000.,value=10.,step=1.)
@@ -281,10 +329,26 @@ def mechanism_page():
                 return result
             result=_do(save)
             if result:st.success(str(result))
+    with st.expander('生成分子参数'):
+        st.caption('每行输入名称、SMILES 和形式电荷，以空格分隔。适用于已明确质子化状态的 H/C/N/O 小分子。')
+        molecule_text=st.text_area('分子清单',value='ethanol CCO 0\noctanoic_acid CCCCCCCC(=O)O 0\noctanoate CCCCCCCC(=O)[O-] -1',key='parameter_molecules')
+        if st.button('生成 GAFF2 参数并检查'):
+            def submit_parameters():
+                molecules=[]
+                for line in molecule_text.splitlines():
+                    if not line.strip():continue
+                    fields=line.split()
+                    if len(fields)!=3:raise ValueError('每行需要名称、SMILES 和形式电荷三项')
+                    molecules.append({'name':fields[0],'smiles':fields[1],'formal_charge':int(fields[2])})
+                request={'version':'1.0.0','forcefield':'GAFF2','charge_method':'AM1-BCC','molecules':molecules}
+                path=state_root()/'ui_inputs'/(uid('molecules')+'.json');path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text(json.dumps(request),encoding='utf-8')
+                return _submit('mechanism',{'action':'parameters','input':str(path)})
+            _do(submit_parameters)
     with st.expander("准备与运行"):
         st.caption("输入已确认的构建和参数清单；缺失残基、未支持的金属/共价状态或未通过的质量检查会列出具体缺项。")
-        action=st.selectbox("执行阶段",["check","prepare","run","batch","analyze"],
-                            format_func=lambda x:{"check":"检查准备状态","prepare":"装配与平衡","run":"分段生产模拟","batch":"执行已冻结的独立重复批次","analyze":"通道和水/醇分析"}[x])
+        action=st.selectbox("执行阶段",["parameters","solution","solution-analyze","relax-assembly","check","prepare","run","batch","analyze"],
+                            format_func=lambda x:{"parameters":"生成配体参数与数值检查","solution":"溶液密度与浓度检查","solution-analyze":"溶液分布与接触分析","relax-assembly":"修正装配碰撞并复核","check":"检查准备状态","prepare":"装配与平衡","run":"分段生产模拟","batch":"执行已冻结的独立重复批次","analyze":"通道和水/醇分析"}[x])
         upload=st.file_uploader("此阶段输入 JSON",type=["json"],key="mechanism_input")
         if st.button("提交机制任务",disabled=upload is None):
             _do(lambda:_submit("mechanism",{"action":action,**json.loads(upload.getvalue())}))

@@ -75,6 +75,36 @@ python -m bur01_structmine.cli dataset map-sabio --input <快照目录> --spec <
 
 ## 机制计算约束
 
+### 完整构建与离线比对
+
+AF 预测页面可上传 A3M，命令行对应 `--local-msa`。首条序列必须与当前构建完全一致；本地模式禁用公共模板搜索，也不会发起公共 MSA 请求。`unified.msa.extend_msa` 只在核心序列与原比对首条完全一致时复用同源行，并逐项记录突变和终端空缺列。补齐比对列不代表获得了新增残基的进化信息。
+
+Blackwell 结构环境使用 Python 3.12、ColabFold 1.6.3、JAX 0.9.1 / CUDA 13；实际安装版本见 `configs/unified/structure-linux-py312.lock.txt`。安装到独立的 `envs/structure`，复制 `scripts/unified/structure-python` 和 `colabfold-batch` 到部署目录的 `bin`。该环境的 OpenMM 8.5.2 仅供 AlphaFold 松弛；正式 MD 继续使用独立主环境中的 OpenMM 8.2.0。
+
+已有 Python 3.12 时执行 `bash scripts/unified/bootstrap_structure.sh <部署目录>`；可通过 `AQUA_STRUCTURE_BASE_PYTHON` 指定解释器。该脚本安装锁定依赖、测试 GPU、调用 ColabFold 官方下载程序并检查 5 个 PTM 权重文件的 SHA-256，部署路径只写入本机参数记录。使用已有参数时可单独执行 `verify_af_parameters.py --data <模型目录>`。
+
+结构检查分别记录完整序列、重原子、肽键连续性、严重原子冲突、家族催化规则、协议指定原子距离和置信度。装配依据明确的生物学装配参考，保存拟合变换与链间冲突。坐标最小化只作为修复步骤，不能代替水溶液平衡或实验寡聚状态验证。
+
+`mechanism relax-assembly` 在重建氢原子后执行 ff19SB/OBC2 隐式溶剂坐标最小化，约束已覆盖核心的骨架。逐链重新检查序列和催化几何，同时检查链间碰撞和核心位移；该步骤不产生生产轨迹，也不改变后续 ff19SB/OPC 显式溶剂路线。氢原子重建、旧失败日志和修复后的坐标分别保存。
+
+### 分子参数与溶液检查
+
+网页“机制计算 → 生成分子参数”接受名称、SMILES 和形式电荷。服务器配置 `AQUA_AMBERHOME`，使用 AmberTools 26、GAFF2 和 AM1-BCC。通用示例见 `configs/unified/ligands.example.json`。
+
+AmberTools 采用独立环境：`micromamba create -p <部署目录>/envs/amber -f configs/unified/amber-linux.yml`。检查该目录的 `bin` 下有 `antechamber`、`parmchk2`、`tleap` 和 `packmol`；生产 OpenMM 仍由主计算环境提供。每份参数报告保存实际 AmberTools 版本和 GAFF2 参数文件的 SHA-256。
+
+```text
+python -m bur01_structmine.cli mechanism parameters --input configs/unified/ligands.example.json --executor autodl
+```
+
+目前自动路线覆盖 H/C/N/O 小分子，拒绝电荷不一致、自由基、多个断开分子和未支持元素。检查原子与键数、净电荷、缺失参数和有限能量。小于 0.002 e 且每原子小于 0.0001 e 的电荷舍入残差可均匀校正，保留原始 MOL2、修正量和失败历史；超出范围停止。
+
+柠檬酸的宏观电荷分布与具体羧基的质子化位置分开记录。[公开 pKa 数据](https://www.merckmillipore.com/ER/en/product/sial/c0759)对应 25 °C；用于其他温度需明确记录近似。单分子参数通过后仍显示“溶液验证待完成”。
+
+`mechanism solution` 用已校验参数构建 OPC 体相，执行 40 ps NVT 和明确限定的 NPT 检查，记录实际体积、分子数量、密度分段变化及实现浓度。乙醇/水对照可与[标准密度表](https://nvlpubs.nist.gov/nistpubs/Legacy/circ/nbscircular19e5.pdf)在相同温度和质量组成下比较；该对照不能替代含酸和缓冲盐的体系验证。原始轨迹留在计算服务器，报告自动回传。
+
+`mechanism solution-analyze --spec <分析输入JSON>` 接受 `{"run":"remote:/部署目录内的溶液结果目录"}`。按每帧实际盒长处理周期边界，输出乙醇氧原子径向分布、空间分区计数、柠檬酸接触簇和离子接触。密度稳定但不符合参考容差时仍标记为未通过；短轨迹中的接触分布不用于声明聚集平衡或微状态比例。参数任务同时输出 `parameters.zip`，包含参数文件、原始数值报告与校验值，可在网页直接下载。
+
 预算已经按用户决定改为 **120 ns**：亲本 +3 条候选，每个 3 个独立重复，各 10 ns；平衡另计。运行前必须冻结实际完整构建序列、三条候选选择依据、反应条件及独立随机种子。
 
 公共接口要求 prepared.json 包含实际 prmtop、平衡后 inpcrd、同一坐标的 protein_pdb、反应及各文件 SHA-256。构建、装配、参数、几何、平衡五项证据必须通过，未解决项必须为空。会核对 Amber 体系的实际蛋白序列及重原子坐标；旧记录中的 PASS 字样不直接放行。
@@ -90,9 +120,9 @@ python -m bur01_structmine.cli dataset map-sabio --input <快照目录> --spec <
 - 原固定性质模型环境重算 24 条设计及亲本：25 条蛋白、50 组酶—底物；SWI、TmProt、EnzRank 与原报告数值一致。
 - 单元测试覆盖编号、构建映射、家族规则、单位、检测限、模拟标签排除、并发任务、重试、取消、结果传输与原文件保留。
 - 2026-11-24 已完成 GPU 性质预测、ESM 特征中断恢复、两个自主模型训练和 CALB/GH1 组合设计示例。机器地址、私有构建和候选结果留在研究工作区；公开汇总见 [本次验收记录](validation/2026-11-24-engineering-preview.json)。
-- 172 项非 GPU 测试及独立数值环境中的 8 项测试通过。主测试环境未安装 RDKit，其学习模块由独立数值环境运行。
+- 当前本机主环境 187 项测试通过；独立数值环境 19 项通过，其中 6 项与主环境重叠，合计覆盖 200 项不同测试。主环境缺少 RDKit 的相关检查由独立数值环境补齐。
 - 原 24 条核心设计映射至 294 残基完整构建后，完成亲本加 24 条候选的性质及 kcat/Km 预测。新结果单独保存；其序列适用域尚未建立，不发布校准区间。
-- OpenMM CUDA 与二进制检查点小体系测试通过。120 ns 酶轨迹尚未开始：完整构建坐标、独立结构复核、配体/缓冲液参数及催化几何和平衡检查仍需完成。
+- OpenMM CUDA 与二进制检查点小体系测试通过；独立 ColabFold GPU 环境完成 4 个完整构建的预测，单链与二聚体坐标复核通过。10 种分子状态的参数数值检查、3 组各 1 ns 的体相溶液检查及分布分析完成。120 ns 酶生产轨迹尚未开始；蛋白质子化、完整显式溶液装配和平衡仍需逐构建完成。私有构建、逐候选报告和体相轨迹保存在研究工作区。
 - 完整 NR 数据库验收独立保留；当前小规模示例通过不等于完整 NR 验收。
 
 ### 本次冻结模型评估

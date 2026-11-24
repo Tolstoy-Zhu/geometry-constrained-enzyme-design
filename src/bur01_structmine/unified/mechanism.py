@@ -177,6 +177,18 @@ def run_prepared(prepared_manifest,output,production_ns=10.,segment_ns=10.,seed=
 
 def execute_mechanism(output,action="check",**inputs):
     output=Path(output)
+    if action=='parameters':
+        from .ligand_parameters import parameterize
+        return parameterize(output=output,**inputs)
+    if action=='solution':
+        from .solution_validation import validate_solution
+        return validate_solution(output=output,**inputs)
+    if action=='solution-analyze':
+        from .solution_analysis import analyze_solution
+        return analyze_solution(output=output,**inputs)
+    if action=='relax-assembly':
+        from .assembly_relaxation import relax_assembly
+        return relax_assembly(output=output,**inputs)
     if action=="batch":
         from .batch import run_batch
         return run_batch(output=output,**inputs)

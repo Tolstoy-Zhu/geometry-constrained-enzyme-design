@@ -1,0 +1,6 @@
+name: aqua-amber-tools
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - ambertools=26.0

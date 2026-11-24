@@ -276,6 +276,26 @@ def _prepare_msa(
     output_dir: Path,
     cache_root: Path,
 ) -> Path:
+    if request.local_msa_path:
+        from .unified.msa import read_monomer_a3m
+        from .unified.datasets import file_hash
+        source=resolve_path(request.local_msa_path)
+        record=read_single_fasta(input_fasta)
+        rows=read_monomer_a3m(source)
+        if rows[0][1]!=record.sequence:raise ValueError('Local MSA query does not match the requested construct')
+        if request.use_templates:raise ValueError('Local MSA mode currently requires templates disabled')
+        output_dir.mkdir(parents=True,exist_ok=True)
+        msa_path=output_dir/(record.name+'.a3m');shutil.copy2(source,msa_path)
+        context.manifest.public_msa_service=''
+        context.manifest.msa_provenance={'source':'provided_local_a3m','sha256':file_hash(source),'rows':len(rows),'public_request':False}
+        evidence=source.with_suffix('.provenance.json')
+        if evidence.is_file():
+            receipt=json.loads(evidence.read_text(encoding='utf-8'))
+            if receipt.get('output_sha256')!=file_hash(source):raise ValueError('Local MSA provenance checksum mismatch')
+            context.manifest.msa_provenance['derivation']=receipt
+        context._write_manifest()
+        context.emit('msa','completed','Validated the supplied local MSA; no external sequence request',.30,msa_path)
+        return msa_path
     cache_key = _cache_key(read_single_fasta(input_fasta), request.use_templates)
     cache_dir = cache_root / cache_key
     context.manifest.msa_cache_key = cache_key
@@ -408,7 +428,7 @@ def run_prediction(request: PredictionRequest) -> PredictionSummary:
             context._write_manifest()
             context.emit("inference", "running", "Running local GPU AlphaFold2-PTM inference", 0.38)
             arguments = build_prediction_arguments(
-                runtime.path(input_fasta),
+                runtime.path(msa_path if request.local_msa_path else input_fasta),
                 runtime.path(output_dir),
                 parameters,
                 request.use_templates,

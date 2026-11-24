@@ -137,6 +137,19 @@ class Store:
         if state not in {"queued","running","completed","failed","cancelled","interrupted","blocked"}:
             raise ValueError("Invalid task state")
         with self.connect() as db:
+            if isinstance(result,dict) and result.get('remote_updated'):
+                # Polling and result downloads can finish concurrently. Merge the
+                # download receipt under the same write lock instead of losing it.
+                db.execute('BEGIN IMMEDIATE')
+                row=db.execute('SELECT result FROM tasks WHERE id=?',(task_id,)).fetchone()
+                prior=json.loads(row[0]) if row and row[0] else {}
+                previous_time=prior.get('remote_updated','')
+                if previous_time>result['remote_updated']:return
+                result=dict(result)
+                if previous_time==result['remote_updated'] and prior.get('local_output') and not result.get('local_output'):
+                    if (Path(prior['local_output'])/'.aqua-download.json').is_file():result['local_output']=prior['local_output']
+                if previous_time==result['remote_updated'] and prior.get('download_error') and not result.get('local_output'):
+                    result.setdefault('download_error',prior['download_error'])
             db.execute("UPDATE tasks SET state=?,message=?,result=COALESCE(?,result),updated=? WHERE id=?",
                        (state,message,dumps(result) if result is not None else None,now(),task_id))
             db.execute("INSERT INTO events(task_id,time,state,message) VALUES(?,?,?,?)",

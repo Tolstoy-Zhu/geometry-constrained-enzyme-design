@@ -42,6 +42,19 @@ from bur01_structmine.unified.export import export_task
 from bur01_structmine.unified.store import Store
 from bur01_structmine.unified.artifacts import read_manifest,resolve_table_paths
 
+
+def test_long_prediction_filenames_survive_download(tmp_path):
+    import os
+    name='predictions/'+('candidate_'+'a'*80)+'/'+('result_'+'b'*150)+'.json'
+    blob=io.BytesIO()
+    with tarfile.open(fileobj=blob,mode='w:gz') as archive:
+        info=tarfile.TarInfo(name);info.size=2;archive.addfile(info,io.BytesIO(b'{}'))
+    destination=tmp_path/'download'
+    safe_extract(blob.getvalue(),destination)
+    target=destination/Path(name)
+    if os.name=='nt':target=Path('\\\\?\\'+str(target.resolve()))
+    assert target.read_bytes()==b'{}'
+
 def test_nested_prepared_dependencies_preserve_hashes(tmp_path):
     source=tmp_path/"source";source.mkdir()
     coords=source/"protein.pdb";coords.write_text("coordinate fixture")
