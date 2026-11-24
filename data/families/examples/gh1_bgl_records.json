@@ -1,0 +1,29 @@
+{
+  "enzyme": [
+    {
+      "schema_version": "1.0.0",
+      "enzyme_id": "gh1_bgl_reference_chain",
+      "sequence": "SIHMFPSDFKWGVATAAYQIEGAYNEDGRGMSIWDTFAHTPGKVKNGDNGNVACDSYHRVEEDVQLLKDLGVKVYRFSISWPRVLPQGTGEVNRAGLDYYHRLVDELLANGIEPFCTLYHWDLPQALQDQGGWGSRITIDAFAEYAELMFKELGGKIKQWITFNEPWCMAFLSNYLGVHAPGNKDLQLAIDVSHHLLVAHGRAVTLFRELGISGEIGIAPNTSWAVPYRRTKEDMEACLRVNGWSGDWYLDPIYFGEYPKFMLDWYENLGYKPPIVDGDMELIHQPIDFIGINYYTSSMNRYNPGEAGGMLSSEAISMGAPKTDIGWEIYAEGLYDLLRYTADKYGNPTLYITENGACYNDGLSLDGRIHDQRRIDYLAMHLIQASRAIEDGINLKGYMEWSLMDNFEWAEGYGMRFGLVHVDYDTLVRTPKDSFYWYKGVISRGWLDL",
+      "sequence_sha256": "5b7e82a52adce1f1b6421906433cbade7cdeb929364b35bd30db2532736dd7d5",
+      "name": "GH1 β-葡萄糖苷酶 public reference",
+      "family_id": "gh1_bgl",
+      "source": "public_reference",
+      "parent_id": null,
+      "construct_id": "gh1_bgl_resolved_coordinates",
+      "construct_description": "Sequence resolved in the public structure; not a confirmed expression construct",
+      "structure_path": null,
+      "chain": "A",
+      "numbering_map": [],
+      "aliases": [],
+      "provenance": {
+        "reference_sha256": "a4e2faa9023c8811cb0e1f8c35390af656f22891bc7ce38cf8109d0a0341f224",
+        "sources": [
+          "https://www.rcsb.org/structure/1QOX",
+          "https://ezcatdb.cbrc.pj.aist.go.jp/EzCatDB/enzyme/S00205"
+        ]
+      }
+    }
+  ],
+  "reaction": [],
+  "assay": []
+}

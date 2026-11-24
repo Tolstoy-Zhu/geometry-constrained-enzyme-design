@@ -1,0 +1,57 @@
+{
+  "family_id": "bur01",
+  "sites": [
+    {
+      "role": "nucleophile",
+      "reference_number": 111,
+      "residue": "S111",
+      "index": 99,
+      "identity_pass": true,
+      "missing_atoms": []
+    },
+    {
+      "role": "acid",
+      "reference_number": 241,
+      "residue": "D241",
+      "index": 229,
+      "identity_pass": true,
+      "missing_atoms": []
+    },
+    {
+      "role": "base",
+      "reference_number": 274,
+      "residue": "H274",
+      "index": 262,
+      "identity_pass": true,
+      "missing_atoms": []
+    }
+  ],
+  "geometry": [
+    {
+      "roles": [
+        "nucleophile",
+        "base"
+      ],
+      "distance_A": 2.8943418563459824,
+      "minimum_A": 2.0,
+      "maximum_A": 5.0,
+      "status": "compatible"
+    },
+    {
+      "roles": [
+        "acid",
+        "base"
+      ],
+      "distance_A": 2.659957639543533,
+      "minimum_A": 2.0,
+      "maximum_A": 5.0,
+      "status": "compatible"
+    }
+  ],
+  "protected_indices": [],
+  "fold_pass": true,
+  "catalytic_identity_pass": true,
+  "qtmscore": 1.0,
+  "ttmscore": 1.0,
+  "validation_scope": "Bur01 structural benchmark"
+}

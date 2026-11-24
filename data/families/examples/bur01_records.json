@@ -1,0 +1,28 @@
+{
+  "enzyme": [
+    {
+      "schema_version": "1.0.0",
+      "enzyme_id": "bur01_reference_chain",
+      "sequence": "DHPVFVLVHGAWHGAWCYAHVAAALAERGYLSIARDLPAHGINARFPASYLERPLDKDAFGAEPSPVANTTLDDYATQVMEAVDDAYALGHGKVVLVGHSMGGLAITAAAERAPEKIAKIVYLAAFMPASGVPGLDYVRAPENKGEMLAPLMLASPRVAGALRIDPRSGDAAYRALAKRALYDDAAQADFEAMANLMTCDVPAAPFATAIPTTAARWGAIDRHYIKCLADRVILPALQQRFIDEADAFVPGNPTHVHQLDSSHSPFVSQPGVLAGVLVDIAKS",
+      "sequence_sha256": "405bd777924d47a1fa51e2b37d3e75985a6d9be2b262513cd94d039da959a7d5",
+      "name": "Bur01 类酶 public reference",
+      "family_id": "bur01",
+      "source": "public_reference",
+      "parent_id": null,
+      "construct_id": "bur01_resolved_coordinates",
+      "construct_description": "Sequence resolved in the public structure; not a confirmed expression construct",
+      "structure_path": null,
+      "chain": "A",
+      "numbering_map": [],
+      "aliases": [],
+      "provenance": {
+        "reference_sha256": "9f51637496713b18d3ec8f0586a1aef19d3c8f96bd3e48fda9e9af6e88da24fe",
+        "sources": [
+          "https://www.rcsb.org/structure/8HFW"
+        ]
+      }
+    }
+  ],
+  "reaction": [],
+  "assay": []
+}

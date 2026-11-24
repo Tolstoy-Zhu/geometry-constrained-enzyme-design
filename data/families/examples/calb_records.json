@@ -1,0 +1,29 @@
+{
+  "enzyme": [
+    {
+      "schema_version": "1.0.0",
+      "enzyme_id": "calb_reference_chain",
+      "sequence": "LPSGSDPAFSQPKSVLDAGLTCQGASPSSVSKPILLVPGTGTTGPQSFDSNWIPLSTQLGYTPCWISPPPFMLNDTQVNTEYMVNAITALYAGSGNNKLPVLTWSQGGLVAQWGLTFFPSIRSKVDRLMAFAPDYKGTVLAGPLDALAVSAPSVWQQTTGSALTTALRNAGGLTQIVPTTNLYSATDEIVQPQVSNSPLDSSYLFNGKNVQAQAVCGPLFVIDHAGSLTSQFSYVVGRSALRSTTGQARSADYGITDCNPLPANDLTPEQKVAAAALLAPAAAAIVAGPKQNCEPDLMPYARPFAVGKRTCSGIVTP",
+      "sequence_sha256": "d187d570e2dc4402244581ab819a3f44c4ef7b632574a39cf5d466e477b4a46f",
+      "name": "CALB 脂肪酶 public reference",
+      "family_id": "calb",
+      "source": "public_reference",
+      "parent_id": null,
+      "construct_id": "calb_resolved_coordinates",
+      "construct_description": "Sequence resolved in the public structure; not a confirmed expression construct",
+      "structure_path": null,
+      "chain": "A",
+      "numbering_map": [],
+      "aliases": [],
+      "provenance": {
+        "reference_sha256": "bf5e74141ee44d1de425f8b511eda0a49c37efa8c2b07e8bd372853ee8de406c",
+        "sources": [
+          "https://www.rcsb.org/structure/1TCA",
+          "https://pmc.ncbi.nlm.nih.gov/articles/PMC4655990/"
+        ]
+      }
+    }
+  ],
+  "reaction": [],
+  "assay": []
+}

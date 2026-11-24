@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "family_id": "bur01",
+  "name": "Bur01 类酶",
+  "reference_pdb": "data/query/Bur01m.pdb",
+  "reference_chain": "A",
+  "reference_sha256": "9f51637496713b18d3ec8f0586a1aef19d3c8f96bd3e48fda9e9af6e88da24fe",
+  "sites": [
+    {
+      "role": "nucleophile",
+      "residue_number": 111,
+      "amino_acid": "S",
+      "atoms": [
+        "OG"
+      ]
+    },
+    {
+      "role": "acid",
+      "residue_number": 241,
+      "amino_acid": "D",
+      "atoms": [
+        "OD1",
+        "OD2"
+      ]
+    },
+    {
+      "role": "base",
+      "residue_number": 274,
+      "amino_acid": "H",
+      "atoms": [
+        "ND1",
+        "NE2"
+      ]
+    }
+  ],
+  "geometry": [
+    {
+      "first_role": "nucleophile",
+      "second_role": "base",
+      "minimum_A": 2.0,
+      "maximum_A": 5.0
+    },
+    {
+      "first_role": "acid",
+      "second_role": "base",
+      "minimum_A": 2.0,
+      "maximum_A": 5.0
+    }
+  ],
+  "protected_residues": [],
+  "protect_serine_motif": true,
+  "assembly": "biological assembly must be validated before MD",
+  "wase_screen": true,
+  "validation_scope": "Bur01 structural benchmark",
+  "sources": [
+    "https://www.rcsb.org/structure/8HFW"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "family_id": "gh1_bgl",
+  "name": "GH1 β-葡萄糖苷酶",
+  "reference_pdb": "data/families/1QOX.pdb",
+  "reference_chain": "A",
+  "reference_sha256": "a4e2faa9023c8811cb0e1f8c35390af656f22891bc7ce38cf8109d0a0341f224",
+  "sites": [
+    {
+      "role": "acid_base",
+      "residue_number": 166,
+      "amino_acid": "E",
+      "atoms": [
+        "OE1",
+        "OE2"
+      ]
+    },
+    {
+      "role": "nucleophile",
+      "residue_number": 355,
+      "amino_acid": "E",
+      "atoms": [
+        "OE1",
+        "OE2"
+      ]
+    }
+  ],
+  "geometry": [],
+  "protected_residues": [],
+  "protect_serine_motif": false,
+  "assembly": "biological assembly requires explicit validation before MD",
+  "wase_screen": false,
+  "validation_scope": "public reference mapping; performance not yet validated",
+  "sources": [
+    "https://www.rcsb.org/structure/1QOX",
+    "https://ezcatdb.cbrc.pj.aist.go.jp/EzCatDB/enzyme/S00205"
+  ]
+}

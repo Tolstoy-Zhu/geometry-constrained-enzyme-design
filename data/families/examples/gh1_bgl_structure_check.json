@@ -1,0 +1,28 @@
+{
+  "family_id": "gh1_bgl",
+  "sites": [
+    {
+      "role": "acid_base",
+      "reference_number": 166,
+      "residue": "E166",
+      "index": 164,
+      "identity_pass": true,
+      "missing_atoms": []
+    },
+    {
+      "role": "nucleophile",
+      "reference_number": 355,
+      "residue": "E355",
+      "index": 353,
+      "identity_pass": true,
+      "missing_atoms": []
+    }
+  ],
+  "geometry": [],
+  "protected_indices": [],
+  "fold_pass": true,
+  "catalytic_identity_pass": true,
+  "qtmscore": 1.0,
+  "ttmscore": 1.0,
+  "validation_scope": "public reference mapping; performance not yet validated"
+}
