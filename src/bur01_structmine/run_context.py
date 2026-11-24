@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import platform
 import re
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -29,7 +30,7 @@ def file_sha256(path: str | Path) -> str:
 def make_run_id(label: str = "run") -> str:
     safe = re.sub(r"[^A-Za-z0-9_.-]+", "-", label).strip("-") or "run"
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    return f"{stamp}_{safe}"
+    return f"{stamp}_{uuid.uuid4().hex[:12]}_{safe}"
 
 
 def mark_run_cancelled(run_dir: str | Path, reason: str = "Cancelled by user") -> bool:

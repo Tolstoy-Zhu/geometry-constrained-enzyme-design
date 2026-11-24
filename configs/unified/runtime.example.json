@@ -1,0 +1,10 @@
+{
+  "python": "C:/path/to/python.exe",
+  "environment": {
+    "AQUA_PROPERTY_MODELS": "C:/path/to/properties-v1",
+    "AQUA_PROPERTY_PYTHON": "C:/path/to/property-python.exe",
+    "AQUA_DESIGN_MODELS": "C:/path/to/design-v1",
+    "AQUA_LEARNING_PYTHON": "C:/path/to/learning-python.exe",
+    "AQUA_MECHANISM_PYTHON": "C:/path/to/mechanism-python.exe"
+  }
+}

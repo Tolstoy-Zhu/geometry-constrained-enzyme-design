@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Install this wrapper at <deployment>/bin/aqua-python.
+set -euo pipefail
+AQUA_DEPLOY_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$AQUA_DEPLOY_ROOT/code/src"
+export PYTHONUNBUFFERED=1
+export AQUA_STATE_ROOT="$AQUA_DEPLOY_ROOT/state"
+export AQUA_PROPERTY_MODELS="$AQUA_DEPLOY_ROOT/models/properties-v1"
+export AQUA_DESIGN_MODELS="$AQUA_DEPLOY_ROOT/models/design-v1"
+export AQUA_PROPERTY_PYTHON="$AQUA_DEPLOY_ROOT/envs/aqua/bin/python"
+export AQUA_FEATURE_PYTHON="$AQUA_PROPERTY_PYTHON"
+export AQUA_LEARNING_PYTHON="$AQUA_PROPERTY_PYTHON"
+export AQUA_MECHANISM_PYTHON="$AQUA_PROPERTY_PYTHON"
+export PATH="$AQUA_DEPLOY_ROOT/bin:$PATH"
+export OMP_NUM_THREADS=8 TF_NUM_INTRAOP_THREADS=8 TF_NUM_INTEROP_THREADS=2
+for AQUA_LIB in "$AQUA_DEPLOY_ROOT"/envs/aqua/lib/python*/site-packages/nvidia/*/lib; do
+    if [ -d "$AQUA_LIB" ]; then export LD_LIBRARY_PATH="$AQUA_LIB:${LD_LIBRARY_PATH:-}"; fi
+done
+cd "$AQUA_DEPLOY_ROOT/code"
+exec "$AQUA_PROPERTY_PYTHON" "$@"
+

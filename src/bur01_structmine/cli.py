@@ -216,6 +216,9 @@ def _run_tests(extra_args: list[str] | None = None) -> int:
 
 
 def _add_prediction_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument('--family',default='bur01')
+    parser.add_argument('--executor',default='local')
+    parser.add_argument('--reaction-config')
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--fasta", help="Path to one 20-1000 aa monomer FASTA")
     source.add_argument("--candidate-run", help="Run ID containing an annotated candidate sequence")
@@ -256,6 +259,7 @@ def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
         except (ValueError, TypeError) as exc:
             raise ValueError(f"Invalid --catalytic-site value: {value!r}") from exc
     return PredictionRequest(
+        family_id=args.family,
         fasta_path=args.fasta,
         candidate_run_id=args.candidate_run,
         candidate_nr_run_id=args.nr_run,
@@ -275,6 +279,8 @@ def _prediction_request(args: argparse.Namespace) -> PredictionRequest:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aquaesternet-structmine", description=PROJECT_NAME)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    from .unified.cli import add_commands
+    add_commands(subparsers)
     from .design_cli import add_design_commands
     add_design_commands(subparsers)
     from .property_cli import add_property_commands
@@ -300,6 +306,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--query-structure")
     run.add_argument("--query-chain")
     run.add_argument("--parent-prediction-id")
+    run.add_argument('--family',default='bur01')
+    run.add_argument('--executor',default='local')
+    run.add_argument('--reaction-config')
 
     benchmark = subparsers.add_parser("benchmark", help="Run the fixed Bur01-like acceptance benchmark")
     benchmark.add_argument("--engine", choices=("foldseek", "tmtools"), default="foldseek")
@@ -348,6 +357,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Expand a structure run against a configured local MMseqs2 sequence database",
     )
     nr_expand.add_argument("--source-run", required=True)
+    nr_expand.add_argument("--family", default="bur01")
     nr_expand.add_argument("--config", default="configs/nr_local_demo.yaml")
     nr_expand.add_argument("--nr-run-id")
     nr_expand.add_argument("--database-path")
@@ -359,6 +369,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Export a credential-free complete-NR Bash/Slurm/PBS server job",
     )
     nr_export.add_argument("--source-run", required=True)
+    nr_export.add_argument("--family", default="bur01")
     nr_export.add_argument("--config", default="configs/nr_full_server.yaml")
     nr_export.add_argument("--nr-run-id")
     nr_export.add_argument("--output-root", default="results/nr_runs")
@@ -441,6 +452,18 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    from .unified.cli import COMMANDS,dispatch
+    if args.command in COMMANDS:return dispatch(args)
+    if (getattr(args,'executor','local')!='local' or getattr(args,'reaction_config',None)) and args.command in {'run','predict'}:
+        from .unified.execution import submit
+        inputs=({'config_path':args.config,'query_structure':args.query_structure,'query_chain':args.query_chain,
+                 'skip_foldseek':args.skip_search,'input_tsv':args.input_tsv,'parent_prediction_id':args.parent_prediction_id,
+                 'run_id':args.run_id,'legacy_output':args.legacy_output}
+                if args.command=='run' else _prediction_request(args).model_dump(mode='json'))
+        if args.command=='predict' and args.executor!='local':inputs['runtime_backend']='native'
+        print(submit('mine' if args.command=='run' else 'predict',inputs,family_id=args.family,executor=args.executor,
+                     reaction_config=args.reaction_config))
+        return 0
     if args.command in {"properties", "properties-setup", "properties-web", "web"}:
         from .property_cli import dispatch_property
         return dispatch_property(args)
@@ -484,6 +507,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if args.strict and not report.passed else 0
     if args.command == "run":
         request = RunRequest(
+            family_id=args.family,
             config_path=args.config,
             run_id=args.run_id,
             output_root=args.output_root,
@@ -494,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
             parent_prediction_id=args.parent_prediction_id,
         )
         summary = run_pipeline(
+            family_id=request.family_id,
             config_path=request.config_path,
             run_id=request.run_id,
             output_root=request.output_root,
@@ -566,6 +591,7 @@ def main(argv: list[str] | None = None) -> int:
         summary = run_nr_expansion(
             NrExpansionRequest(
                 source_run_id=args.source_run,
+                family_id=args.family,
                 config_path=args.config,
                 nr_run_id=args.nr_run_id,
                 output_root=args.output_root,
@@ -580,6 +606,7 @@ def main(argv: list[str] | None = None) -> int:
         summary = export_nr_job_bundle(
             NrExpansionRequest(
                 source_run_id=args.source_run,
+                family_id=args.family,
                 config_path=args.config,
                 nr_run_id=args.nr_run_id,
                 output_root=args.output_root,
