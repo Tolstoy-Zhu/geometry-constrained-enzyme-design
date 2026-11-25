@@ -48,7 +48,7 @@ def run_batch(batch_manifest,output,platform_name="CUDA"):
                 analyses[region]=analyze_trajectory(check["files"]["prmtop"],
                     [s["path"] for s in result["segments"]],folder/("analysis_"+region),
                     replica_id=replica,**settings)
-            reports.append({"candidate_id":row["candidate_id"],"replica_id":replica,
+            reports.append({"candidate_id":row["candidate_id"],"replica_id":replica,"expected_regions":list(row.get('analysis_regions',{})),
                             "production_ns":batch.production_ns,"trajectory":result,"regions":analyses})
             atomic_json(output/"batch_progress.json",{"replicas_completed":len(reports),
                 "production_ns_completed":sum(r["production_ns"] for r in reports),"reports":reports})

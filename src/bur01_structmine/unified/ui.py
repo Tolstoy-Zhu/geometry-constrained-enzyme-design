@@ -269,23 +269,26 @@ def equilibration_task_table():
             '运行状态':{'queued':'排队中','running':'计算中','completed':'已完成','failed':'失败','cancelled':'已取消','interrupted':'已中断','blocked':'待处理'}.get(task['state'],task['state']),
             '已平衡（ps）':f'{completed:g}' if completed is not None else '待开始',
             '核心 RMSD（Å）':f'{rmsd:.3f}' if rmsd is not None else '—',
-            '质量检查':{'passed':'通过，待批次放行','blocked':'未通过','built_awaiting_equilibration':'装配完成，待平衡'}.get(quality,'待完成')})
+            '质量检查':{'passed':'平衡检查通过','blocked':'未通过','built_awaiting_equilibration':'装配完成，待平衡'}.get(quality,'待完成')})
     if rows:
-        st.subheader('后台装配与平衡进度')
+        st.subheader('装配与平衡任务')
         st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
         st.caption('平衡时长单独统计；任务执行完毕与质量检查通过分别显示。关闭本机网页不终止远端排队与计算。')
 
 
 def mechanism_page():
     from .mechanism_plan import MechanismBatch,freeze_batch
+    from .mechanism_results_ui import render_results,render_structure_reviews
     st.subheader("机制计算")
-    st.caption("首批为游离酶：亲本加 3 条候选，每个 3 次独立重复，每次生产模拟 10 ns，总计 120 ns；平衡阶段另计。")
+    st.caption("按项目查看游离酶的生产模拟、独立重复和位点分析；平衡阶段单独统计。")
+    has_results=render_results(context()['project_id'])
+    render_structure_reviews(context()['project_id'])
     st.write("流程：构建确认 → 装配与参数检查 → 最小化和平衡 → 分段 MD → 轨迹质量与通道、水/醇分析。")
     equilibration_task_table()
     preparations=Store().records('preparation',context()['project_id'])
     if preparations:
         prepared=preparations[-1]
-        st.subheader('当前建模与参数检查')
+        st.subheader('建模与参数检查记录')
         if prepared.get('structures'):
             rows=[]
             for row in prepared['structures']:
@@ -316,9 +319,9 @@ def mechanism_page():
                 st.caption('接触按周期边界下的原子距离计算；短轨迹只报告观察到的分布，不据此判定聚集平衡或结合常数。')
         if prepared.get('parameter_bundle') and Path(prepared['parameter_bundle']).is_file():
             st.download_button('下载已检查的分子参数',Path(prepared['parameter_bundle']).read_bytes(),'parameters.zip','application/zip')
-        st.info('正式模拟仍需逐构建完成蛋白质子化设定、显式溶液装配和分阶段平衡检查。')
+        if not has_results:st.info('正式模拟需逐构建完成蛋白质子化设定、显式溶液装配和分阶段平衡检查。')
     for record in Store().records("readiness",context()["project_id"]):
-        st.write(f"完整构建已映射：{record.get('mapped_designs',0)} 条；正式模拟候选已放行：{record.get('selected_production_candidates',0)} 条。")
+        if not has_results:st.write(f"完整构建已映射：{record.get('mapped_designs',0)} 条；正式模拟候选已放行：{record.get('selected_production_candidates',0)} 条。")
         reasons={"full_construct_coordinates_include_residues_1_11":"补全并检查 N 端 1–11 位残基",
                  "independent_candidate_structure_review":"候选完整构建的独立结构复核",
                  "validated_citrate_and_ligand_parameters":"柠檬酸及配体参数验证",
