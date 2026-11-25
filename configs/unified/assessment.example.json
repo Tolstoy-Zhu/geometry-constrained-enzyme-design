@@ -1,0 +1,7 @@
+{
+  "batch_manifest": "remote:/root/autodl-tmp/aquaesternet/research/example/batch.json",
+  "run": "remote:/root/autodl-tmp/aquaesternet/research/example/production",
+  "quality_report": "remote:/root/autodl-tmp/aquaesternet/research/example/quality.json",
+  "production_task_id": "example_production_task",
+  "workers": 4
+}

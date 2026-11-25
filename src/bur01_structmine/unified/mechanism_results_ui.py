@@ -56,7 +56,9 @@ def render_results(project_id):
         if 'candidate_id' in frame:frame['candidate_id']=frame['candidate_id'].map(lambda x:labels.get(x,x))
         if 'solvent' in frame:frame['solvent']=frame['solvent'].map(lambda x:SOLVENTS.get(x,x))
         return frame
-    compare,sites,qc,files=st.tabs(['候选与重复比较','逐位点结果','轨迹质检','报告下载'])
+    compare,sites,qc,channel_tab,sampling_tab,files=st.tabs(['候选与重复比较','逐位点结果','轨迹质检','通道参数检查','机制采样评估','报告下载'])
+    from .assessment_ui import render_assessment
+    render_assessment(project_id,selected,path,labels,channel_tab,sampling_tab)
     with compare:
         frame=pd.DataFrame(data['candidates']);replicates=pd.DataFrame(data['replica_values'])
         if frame.empty:st.info('尚无位点齐全的轨迹分析；可在逐位点结果中查看已有数据。')
@@ -89,6 +91,7 @@ def render_results(project_id):
             'path_found_fraction':'找到路径的采样帧比例','path_bottleneck_mean_A':'已找到路径的平均瓶颈（Å）'}
         if not frame.empty:st.dataframe(frame[list(columns)].rename(columns=columns),hide_index=True,width='stretch')
         st.caption('轨迹边界截断的驻留事件单独计数。未找到通道的帧保留为未找到，不按零瓶颈参与均值；通道结果仍需网格与探针敏感性检查。')
+        st.caption('此表保留原始批次的通道描述；经参数与线段间隙复核后的判断请查看“通道参数检查”。')
     with qc:
         frame=display(pd.DataFrame(data['quality']))
         frame['quality_status']=frame.quality_status.map({'passed':'数值检查通过','requires_review':'需复核','unreviewed':'尚未质检'})

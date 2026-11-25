@@ -75,6 +75,8 @@ def project_page():
     st.subheader("项目与任务")
     st.caption("任务和输入保存到本机索引；远端计算不依赖浏览器保持打开。")
     ctx=context();store=Store()
+    from .acceptance_ui import render_acceptance
+    render_acceptance(ctx['project_id'])
     from .polling import schedule_sync
     schedule_sync(ctx["project_id"],store)
     enzymes=store.records("enzyme",ctx["project_id"])

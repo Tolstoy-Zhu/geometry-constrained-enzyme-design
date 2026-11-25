@@ -91,6 +91,7 @@ def submit(kind,inputs,*,project_id="default",family_id="bur01",executor="local"
         reaction=ReactionSpec.model_validate(found)
     spec=TaskSpec(task_id=uid("task"),project_id=project_id,kind=kind,family_id=family_id,
                   executor=executor,inputs=json.loads(json.dumps(inputs,default=str)),reaction=reaction)
+    if kind=='mechanism' and inputs.get('action')=='assess':spec.resource='cpu'
     if executor=="local":
         # Uploads and selected input files remain valid after the web request ends.
         from .worker import restore_paths
@@ -110,7 +111,7 @@ def submit(kind,inputs,*,project_id="default",family_id="bur01",executor="local"
 PATH_KEYS={"parent","fasta_path","local_msa_path","parameter_dir","config_path","reaction_config","dataset","features","cluster_file",
            "prepared_manifest","batch_manifest","msa","structure","run","input","protocol","reference",
            'query_structure','input_tsv','topology','trajectories','channel_manifest','model_dir','source_run_dir','bundle','query_fasta',
-           'assembly_report','protonation_reference','system_dir','prerequisite_dir'}
+           'assembly_report','protonation_reference','system_dir','prerequisite_dir','quality_report'}
 def task_bundle(spec):
     """Copy only task-selected inputs. Existing result trees and private projects are never swept."""
     files={};blobs={};copied={};counter=0
@@ -150,6 +151,14 @@ def task_bundle(spec):
             if value.startswith("remote:"):
                 if spec.executor=="local": raise ValueError("Remote inputs require a remote executor")
                 return {"__aqua_remote_path__":value[7:]}
+            if spec.executor=='local' and spec.kind=='mechanism' and spec.inputs.get('action')=='assess' and key in {'run','batch_manifest','quality_report'}:
+                # Existing MD is read-only. The assessment verifies its frozen source
+                # hashes before analysis; staging a multi-GB trajectory tree is wasteful.
+                path=Path(value)
+                if path.is_symlink() or not path.exists():raise ValueError('Missing or symbolic analysis source')
+                if key=='run' and not path.is_dir():raise ValueError('Production directory required')
+                if key!='run' and not path.is_file():raise ValueError('Analysis manifest file required')
+                return str(path.resolve())
             return {"__aqua_path__":copy_file(value,key)}
         return value
     payload=spec.model_dump();payload["inputs"]=visit(spec.inputs)

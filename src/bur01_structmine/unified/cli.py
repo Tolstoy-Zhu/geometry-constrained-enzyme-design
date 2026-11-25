@@ -3,9 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-COMMANDS={"projects","tasks","dataset","train","mechanism","records","server","families","kinetics"}
+COMMANDS={"projects","tasks","dataset","train","mechanism","records","server","families","kinetics","acceptance"}
 
 def add_commands(subparsers):
+    acceptance=subparsers.add_parser('acceptance',help='Run project engineering acceptance without new simulations')
+    acceptance.add_argument('--project',default='default');acceptance.add_argument('--output',type=Path,required=True)
+    acceptance.add_argument('--learning-python');acceptance.add_argument('--ui-evidence',type=Path)
+    acceptance.add_argument('--recovery-evidence',type=Path)
     families=subparsers.add_parser("families",help="List configured enzyme families")
     projects=subparsers.add_parser("projects",help="Manage enzyme-engineering projects")
     projects.add_argument("action",choices=["list","create","index"])
@@ -26,7 +30,7 @@ def add_commands(subparsers):
         cmd=subparsers.add_parser(name,help="Submit "+name+" operations")
         cmd.add_argument("action",choices=({"dataset":["fetch-catapro","fetch-sabio","map-sabio","build","features"],
                                           "train":["submit","register"],
-                                          "mechanism":["plan","parameters","solution","solution-analyze","relax-assembly","build-system","equilibrate","check","prepare","run","analyze","batch"],
+                                          "mechanism":["plan","parameters","solution","solution-analyze","relax-assembly","build-system","equilibrate","check","prepare","run","analyze","batch","assess"],
                                           "kinetics":["predict"]})[name])
         cmd.add_argument("--spec",type=Path,help="JSON input fields; paths are validated and staged")
         cmd.add_argument("--input",type=Path);cmd.add_argument("--output",type=Path)
@@ -40,7 +44,10 @@ def dispatch(args):
     from .services import import_records,export_assays,reconcile_task,cancel_task,retry_task,register_model
     from .families import profiles,get_profile
     result=None;store=Store()
-    if args.command=="families":result=[p.model_dump() for p in profiles()]
+    if args.command=='acceptance':
+        from .acceptance import run_acceptance
+        result=run_acceptance(args.project,args.output,store,args.learning_python,args.ui_evidence,args.recovery_evidence)
+    elif args.command=="families":result=[p.model_dump() for p in profiles()]
     elif args.command=="projects":
         if args.action=="list":result=store.projects()
         elif args.action=="create":

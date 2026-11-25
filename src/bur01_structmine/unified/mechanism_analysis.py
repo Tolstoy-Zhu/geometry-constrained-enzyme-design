@@ -90,7 +90,7 @@ def analyze_trajectory(topology,trajectories,output,site_selection,solvent_selec
                                    "entry_events":sum(not e["left_censored"] for e in events),
                                    "residence_events":events,"molecules_in_box":len(groups[key]),
                                    "realized_concentration_M_mean":float(concentrations.mean())}
-    result['channel']={'status':'recomputed_grid_paths','method':'aqua_grid_widest_path_v1','frame_results':channels,
+    result['channel']={'status':'recomputed_grid_paths','method':'aqua_grid_continuous_edge_v2','frame_results':channels,
                        'resolution_A':.8,'probe_radius_A':1.2,'stride_frames':channel_stride,
                        'scope':'geometric_descriptor_requires_grid_and_probe_sensitivity_checks'}
     if channel_manifest:

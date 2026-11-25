@@ -177,6 +177,9 @@ def run_prepared(prepared_manifest,output,production_ns=10.,segment_ns=10.,seed=
 
 def execute_mechanism(output,action="check",**inputs):
     output=Path(output)
+    if action=='assess':
+        from .mechanism_assessment import assess_batch
+        return assess_batch(output=output,**inputs)
     if action=='build-system':
         from .protein_system import prepare_protein_system
         return prepare_protein_system(output=output,**inputs)
